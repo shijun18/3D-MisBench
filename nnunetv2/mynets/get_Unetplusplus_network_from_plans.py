@@ -10,7 +10,7 @@ def get_Unetplusplus_network_from_plans(plans_manager: PlansManager,
     # num_stages = len(configuration_manager.conv_kernel_sizes)
     label_manager = plans_manager.get_label_manager(dataset_json)
 
-    
+
     model = smp.UnetPlusPlus(
         encoder_name='resnet34',
         encoder_depth=5, 
@@ -23,6 +23,16 @@ def get_Unetplusplus_network_from_plans(plans_manager: PlansManager,
         activation=None, 
         aux_params=None)
 
+
+    # model = smp.DeepLabV3(encoder_name='resnet34', 
+    #                   encoder_depth=5, 
+    #                   encoder_weights=None, 
+    #                   decoder_channels=256, 
+    #                   in_channels=num_input_channels, 
+    #                   classes=label_manager.num_segmentation_heads, 
+    #                   activation=None, 
+    #                   upsampling=8, 
+    #                   aux_params=None)
     model.apply(InitWeights_He(1e-4))
     print(num_input_channels)
     print(label_manager.num_segmentation_heads)

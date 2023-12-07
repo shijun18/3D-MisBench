@@ -116,6 +116,7 @@ nnUnetvenv/
 
 nnUNetFrame/
 hiddenlayer/
+output/
 .github/
 .vscode/
 

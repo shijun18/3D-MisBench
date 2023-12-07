@@ -64,7 +64,7 @@ from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
 
 from nnunetv2.mynets.get_Unetplusplus_network_from_plans import get_Unetplusplus_network_from_plans
-from nnunetv2.training.loss.my_get_dice_loss import my_get_dice_loss
+
 
 
 class nnUNetTrainer(object):
@@ -142,14 +142,14 @@ class nnUNetTrainer(object):
                 if self.is_cascaded else None
 
         ### Some hyperparameters for you to fiddle with
-        self.initial_lr = 1e-4
+        self.initial_lr = 1e-3
         # 权重衰减用于控制正则化项的强度，权重衰减可以帮助防止模型过拟合
         self.weight_decay = 3e-5
         # 用于控制正样本（foreground）的过采样比例
         self.oversample_foreground_percent = 0.33
         self.num_iterations_per_epoch = 250
         self.num_val_iterations_per_epoch = 50
-        self.num_epochs = 1000
+        self.num_epochs = 200
         self.current_epoch = 0
 
         ### Dealing with labels/regions
@@ -216,11 +216,11 @@ class nnUNetTrainer(object):
             self.network = self.build_network_architecture(self.plans_manager, self.dataset_json,
                                                            self.configuration_manager,
                                                            self.num_input_channels,
-                                                           enable_deep_supervision=True).to(self.device)
+                                                           enable_deep_supervision=False).to(self.device)
             # compile network for free speedup
-            if self._do_i_compile():
-                self.print_to_log_file('Compiling network...')
-                self.network = torch.compile(self.network)
+            # if self._do_i_compile():
+            #     self.print_to_log_file('Compiling network...')
+            #     self.network = torch.compile(self.network)
 
             self.optimizer, self.lr_scheduler = self.configure_optimizers()
             # if ddp, wrap in DDP wrapper
@@ -300,18 +300,20 @@ class nnUNetTrainer(object):
 
         """
         # Unet++
-        return get_Unetplusplus_network_from_plans(plans_manager, dataset_json, configuration_manager,
-                                      num_input_channels, deep_supervision=enable_deep_supervision)
-
+        # return get_Unetplusplus_network_from_plans(plans_manager, dataset_json, configuration_manager,
+        #                               num_input_channels, deep_supervision=enable_deep_supervision)
+       
 
         # nnUnet
-        """ return get_network_from_plans(plans_manager, dataset_json, configuration_manager,
-                                      num_input_channels, deep_supervision=enable_deep_supervision) """
+        return get_network_from_plans(plans_manager, dataset_json, configuration_manager,
+                                      num_input_channels, deep_supervision=enable_deep_supervision)
 
     def _get_deep_supervision_scales(self):
-        deep_supervision_scales = list(list(i) for i in 1 / np.cumprod(np.vstack(
-            self.configuration_manager.pool_op_kernel_sizes), axis=0))[:-1]
-        return deep_supervision_scales
+
+        # deep_supervision_scales = list(list(i) for i in 1 / np.cumprod(np.vstack(
+        #     self.configuration_manager.pool_op_kernel_sizes), axis=0))[:-1]
+        # return deep_supervision_scales
+        return None
 
     def _set_batch_size_and_oversample(self):
         if not self.is_ddp:
@@ -383,7 +385,7 @@ class nnUNetTrainer(object):
         # we don't use the lowest 2 outputs. Normalize weights so that they sum to 1
         weights = weights / weights.sum()
         # now wrap the loss
-        loss = DeepSupervisionWrapper(loss, weights) """
+        loss = DeepSupervisionWrapper(loss, weights)  """
         return loss
     # 对数据进行旋转和镜像
     def configure_rotation_dummyDA_mirroring_and_inital_patch_size(self):
@@ -613,6 +615,7 @@ class nnUNetTrainer(object):
         # needed for deep supervision: how much do we need to downscale the segmentation targets for the different
         # outputs?
         deep_supervision_scales = self._get_deep_supervision_scales()
+        #print(deep_supervision_scales)
 
         rotation_for_DA, do_dummy_2d_data_aug, initial_patch_size, mirror_axes = \
             self.configure_rotation_dummyDA_mirroring_and_inital_patch_size()
@@ -814,7 +817,7 @@ class nnUNetTrainer(object):
             self.network.module.decoder.deep_supervision = enabled
         else:
             self.network.decoder.deep_supervision = enabled
- """
+        """
     def on_train_start(self):
         if not self.was_initialized:
             self.initialize()
@@ -909,19 +912,10 @@ class nnUNetTrainer(object):
         with autocast(self.device.type, enabled=True) if self.device.type == 'cuda' else dummy_context():
             output = self.network(data)
             # del data
-            l = self.loss(output, target[0])
+            # l = self.loss(output, target[0])
+            l = self.loss(output, target)
         
-        """ if isinstance(target[0], list):  # 如果 output 是一个列表
-            print(111111111111111)
-        elif isinstance(target[0],torch.Tensor):
-            print(222222222222)  """
-        # 测试结果：output是一个张量，target[0]是一个张量
-        """  print(1111111111111111)
-        print(output.shape)
-        print(target[0].shape)
-        print(1111111111111111) """
-
-
+        # 如果存在梯度缩放器：
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()
             self.grad_scaler.unscale_(self.optimizer)
@@ -959,20 +953,29 @@ class nnUNetTrainer(object):
         else:
             target = target.to(self.device, non_blocking=True)
 
+
+        #self.optimizer.zero_grad(set_to_none=True)
         # Autocast is a little bitch.
         # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
         # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
         # So autocast will only be active if we have a cuda device.
         with autocast(self.device.type, enabled=True) if self.device.type == 'cuda' else dummy_context():
             output = self.network(data)
+            #print(data.shape)
             del data
             # l = self.loss(output, target)
-            l = self.loss(output, target[0])
+            l = self.loss(output, target)
 
         # we only need the output with the highest output resolution
         # output = output[0]
+        #print(output.shape)
         output = output
-        target = target[0]
+        target = target
+
+        # print(output.shape)
+        # print(target.shape)
+
+
 
         # the following is needed for online evaluation. Fake dice (green line)
         axes = [0] + list(range(2, output.ndim))
