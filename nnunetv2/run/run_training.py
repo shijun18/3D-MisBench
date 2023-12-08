@@ -27,7 +27,7 @@ def find_free_network_port() -> int:
     s.close()
     return port
 
-# 从输入的参数中获得训练信息
+
 def get_trainer_from_args(dataset_name_or_id: Union[int, str],
                           configuration: str,
                           fold: int,
@@ -35,9 +35,8 @@ def get_trainer_from_args(dataset_name_or_id: Union[int, str],
                           plans_identifier: str = 'nnUNetPlans',
                           use_compressed: bool = False,
                           device: torch.device = torch.device('cuda'),
-                          ):
+                          model: str = 'unet'):
     # load nnunet class and do sanity checks
-    # 从nnunetv2.training.nnUNetTrainer模块中查找一个特定的类，并将这个类赋值给nnunet_trainer
     nnunet_trainer = recursive_find_python_class(join(nnunetv2.__path__[0], "training", "nnUNetTrainer"),
                                                 trainer_name, 'nnunetv2.training.nnUNetTrainer')
     if nnunet_trainer is None:
@@ -64,10 +63,8 @@ def get_trainer_from_args(dataset_name_or_id: Union[int, str],
     plans_file = join(preprocessed_dataset_folder_base, plans_identifier + '.json')
     plans = load_json(plans_file)
     dataset_json = load_json(join(preprocessed_dataset_folder_base, 'dataset.json'))
-    # nnunet_trainer = nnunet_trainer(plans=plans, configuration=configuration, fold=fold,
-    #                                 dataset_json=dataset_json, unpack_dataset=not use_compressed, device=device, model = model)
     nnunet_trainer = nnunet_trainer(plans=plans, configuration=configuration, fold=fold,
-                                    dataset_json=dataset_json, unpack_dataset=not use_compressed, device=device)
+                                    dataset_json=dataset_json, unpack_dataset=not use_compressed, device=device, model = model)
     return nnunet_trainer
 
 
@@ -152,7 +149,7 @@ def run_training(dataset_name_or_id: Union[str, int],
                  disable_checkpointing: bool = False,
                  val_with_best: bool = False,
                  device: torch.device = torch.device('cuda'),
-                 ):
+                 model: str = 'unet'):
     if isinstance(fold, str):
         if fold != 'all':
             try:
@@ -191,10 +188,8 @@ def run_training(dataset_name_or_id: Union[str, int],
                  nprocs=num_gpus,
                  join=True)
     else:
-        # nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, trainer_class_name,
-        #                                        plans_identifier, use_compressed_data, device=device, model=model)
         nnunet_trainer = get_trainer_from_args(dataset_name_or_id, configuration, fold, trainer_class_name,
-                                               plans_identifier, use_compressed_data, device=device)
+                                               plans_identifier, use_compressed_data, device=device, model=model)
 
         if disable_checkpointing:
             nnunet_trainer.disable_checkpointing = disable_checkpointing
@@ -256,8 +251,8 @@ def run_training_entry():
                     help="Use this to set the device the training should run with. Available options are 'cuda' "
                          "(GPU), 'cpu' (CPU) and 'mps' (Apple M1/M2). Do NOT use this to set which GPU ID! "
                          "Use CUDA_VISIBLE_DEVICES=X nnUNetv2_train [...] instead!")
-    # parser.add_argument('--model', type=str,required=False,default='unet',
-    #                     help='model that to be used in the training')
+    parser.add_argument('--model', type=str,required=False,default='unet',
+                        help='model that to be used in the training')
     args = parser.parse_args()
 
     assert args.device in ['cpu', 'cuda', 'mps'], f'-device must be either cpu, mps or cuda. Other devices are not tested/supported. Got: {args.device}.'
@@ -275,7 +270,7 @@ def run_training_entry():
         device = torch.device('mps')
 
     run_training(args.dataset_name_or_id, args.configuration, args.fold, args.tr, args.p, args.pretrained_weights,
-                 args.num_gpus, args.use_compressed, args.npz, args.c, args.val, args.disable_checkpointing, args.val_best,
+                 args.num_gpus, args.use_compressed, args.npz, args.c, args.val, args.disable_checkpointing, args.val_best,model = args.model,
                  device=device)
 
 

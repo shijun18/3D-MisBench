@@ -62,6 +62,7 @@ from torch import distributed as dist
 from torch.cuda import device_count
 from torch.cuda.amp import GradScaler
 from torch.nn.parallel import DistributedDataParallel as DDP
+from nnunetv2.mymodel.mymodel import get_my_network_from_plans  # 增加了mymodel功能
 
 from nnunetv2.mynets.get_Unetplusplus_network_from_plans import get_Unetplusplus_network_from_plans
 
@@ -69,7 +70,7 @@ from nnunetv2.mynets.get_Unetplusplus_network_from_plans import get_Unetplusplus
 
 class nnUNetTrainer(object):
     def __init__(self, plans: dict, configuration: str, fold: int, dataset_json: dict, unpack_dataset: bool = True,
-                 device: torch.device = torch.device('cuda')):
+                 device: torch.device = torch.device('cuda'), model : str = 'unet'):
         # From https://grugbrain.dev/. Worth a read ya big brains ;-)
 
         # apex predator of grug is complexity
@@ -91,6 +92,7 @@ class nnUNetTrainer(object):
         self.local_rank = 0 if not self.is_ddp else dist.get_rank()
 
         self.device = device
+        self.model = model
 
         # print what device we are using
         if self.is_ddp:  # implicitly it's clear that we use cuda in this case
@@ -212,15 +214,21 @@ class nnUNetTrainer(object):
             # 想要借助nnUnet项目来训练自己的模型（不是unet），关键就在于把self.network替换，并把损失函数也替换了，否则会和深监督模块捆绑。
             ##############################################################################################################
 
-
-            self.network = self.build_network_architecture(self.plans_manager, self.dataset_json,
-                                                           self.configuration_manager,
-                                                           self.num_input_channels,
-                                                           enable_deep_supervision=False).to(self.device)
+            # wtt修改了这部分
+            if self.model == 'unet':
+                self.network = self.build_network_architecture(self.plans_manager, self.dataset_json,
+                                                            self.configuration_manager,
+                                                            self.num_input_channels,
+                                                            enable_deep_supervision=True).to(self.device)
+            else:
+                self.network = get_my_network_from_plans(self.plans_manager, self.dataset_json,
+                                                     self.configuration_manager,
+                                                     self.num_input_channels,
+                                                     model = self.model).to(self.device)
             # compile network for free speedup
-            # if self._do_i_compile():
-            #     self.print_to_log_file('Compiling network...')
-            #     self.network = torch.compile(self.network)
+            if self._do_i_compile():
+                self.print_to_log_file('Compiling network...')
+                self.network = torch.compile(self.network)
 
             self.optimizer, self.lr_scheduler = self.configure_optimizers()
             # if ddp, wrap in DDP wrapper
@@ -299,12 +307,7 @@ class nnUNetTrainer(object):
         should be generated. label_manager takes care of all that for you.)
 
         """
-        # Unet++
-        # return get_Unetplusplus_network_from_plans(plans_manager, dataset_json, configuration_manager,
-        #                               num_input_channels, deep_supervision=enable_deep_supervision)
-       
-
-        # nnUnet
+        # 原始的unet
         return get_network_from_plans(plans_manager, dataset_json, configuration_manager,
                                       num_input_channels, deep_supervision=enable_deep_supervision)
 
