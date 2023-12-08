@@ -18,7 +18,9 @@ from nnunetv2.paths import nnUNet_raw
 from batchgenerators.utilities.file_and_folder_operations import *
 import shutil
 import SimpleITK as sitk
+import random
 
+random.seed(42)
 
 def convert_for_submission(source_dir, target_dir):
     """
@@ -39,7 +41,7 @@ def convert_for_submission(source_dir, target_dir):
 if __name__ == "__main__":
     base = "/staff/wangbingxun/dataset/SegTHOR"
 
-    task_id = 57
+    task_id = 59
     task_name = "SegTHOR"
 
     foldername = "Dataset%03.0d_%s" % (task_id, task_name)
@@ -64,10 +66,8 @@ if __name__ == "__main__":
         train_patient_names.append(p)
 
     # 从训练集中划分测试集
-    import random
-
-    random.seed(42)
-    file_list = [file for file in os.listdir(imagestr) ]
+    
+    file_list = sorted(os.listdir(imagestr))
     selected_files = random.sample(file_list, 10)
     for file in selected_files:
         file_path = os.path.join(imagestr, file)

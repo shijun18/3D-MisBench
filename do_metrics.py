@@ -9,7 +9,8 @@ import os
 import nibabel as nib
 import monai
 import torch
-
+import json
+from batchgenerators.utilities.file_and_folder_operations import *
 # def binary_dice(s, g):
 #     """
 #     calculate the Dice score of two N-d volumes.
@@ -71,21 +72,28 @@ import torch
 
 if __name__ == '__main__':
 
-    seg_path = 'output/057'
-    gd_path = "nnUNetFrame/DATASET/nnUNet_raw/Dataset057_SegTHOR/labelsTr"
-    save_dir = ''
+    seg_path = 'output/056'
+    gd_path = "nnUNetFrame/DATASET/nnUNet_raw/Dataset056_SegTHOR/labelsTr"
+    save_dir = 'output/056'
     seg = sorted(os.listdir(seg_path))
 
     dices = []
-    hds = []
-    rves = []
+    hd95s = []
+    asds = []
+    nsds = []
+    ious = []
     case_name = []
-    senss = []
-    specs = []
 
-    seg_list = []
+    with open(join(seg_path,'dataset.json'), 'r') as f:
+        data = json.load(f)
+
+    # 获取 labels 字典
+    labels = data['labels']
+
+    # 获取标签数量
+    num_labels = len(labels)
+
     seg_tensors = []
-    gd_list = []
     gd_tensors = []
     for name in seg:
         if not name.startswith('.') and name.endswith('nii.gz'):
@@ -99,7 +107,7 @@ if __name__ == '__main__':
             # print(seg_tensor.shape)
             # seg_tensors.append(seg_tensor)
             # seg_list.append(seg_arr)
-            num_classes = 5
+            num_classes = num_labels
             H,W,D = seg_tensor.shape
             binary_seg_tensor = torch.zeros((num_classes,H,W,D),dtype=torch.float)
             binary_gd_tensor = torch.zeros((num_classes,H,W,D),dtype=torch.float)
@@ -142,7 +150,7 @@ if __name__ == '__main__':
             gd_tensors.append(binary_gd_tensor)
             print(binary_gd_tensor.shape)
 
-
+            case_name.append(name)
 
             # gd_ = nib.load(os.path.join(gd_path, name))
             # gd_arr = gd_.get_fdata().astype('float32')
@@ -173,7 +181,7 @@ if __name__ == '__main__':
 
 
 #     # 求hausdorff95距离
-    threshold = 0.5
+#    threshold = 0.5
 #     # for i in range(len(seg_tensors)):
 #     #     print(i)
 #     #     print(seg_tensors[i].shape)
@@ -194,24 +202,64 @@ if __name__ == '__main__':
         # binary_gd_tensor = torch.where(gd_tensors[i] > threshold, torch.tensor(1.0), torch.tensor(0.0))
     
         # nsd_score = monai.metrics.compute_surface_dice(binary_seg_tensor, binary_gd_tensor, [0.5], include_background=False, distance_metric='euclidean', spacing=None, use_subvoxels=False)
-        nsd_score = monai.metrics.compute_surface_dice(seg_tensors[i], gd_tensors[i], [1,1,1,1], include_background=False, distance_metric='euclidean', spacing=None, use_subvoxels=False)
+        nsd_score = monai.metrics.compute_surface_dice(seg_tensors[i], gd_tensors[i], [2,2,2,2], include_background=False, distance_metric='euclidean', spacing=None, use_subvoxels=False).tolist()
         print(nsd_score)
+        nsds.append(np.around(nsd_score, decimals=4))
+
 
     # 求ASD
     for i in range(len(seg_tensors)):
         print(i)
-        asd_score = monai.metrics.compute_average_surface_distance(seg_tensors[i], gd_tensors[i], include_background=False, symmetric=False, distance_metric='euclidean', spacing=None)
+        asd_score = monai.metrics.compute_average_surface_distance(seg_tensors[i], gd_tensors[i], include_background=False, symmetric=False, distance_metric='euclidean', spacing=None).tolist()
         print(asd_score)
+        asds.append(np.around(asd_score, decimals=4))
 
     # 求HD95
     for i in range(len(seg_tensors)):
         print(i)
         hd95_score = monai.metrics.compute_hausdorff_distance(seg_tensors[i], gd_tensors[i], include_background=False, distance_metric='euclidean', 
-                                                                percentile=95, directed=False, spacing=None)
+                                                                percentile=95, directed=False, spacing=None).tolist()
         print(hd95_score)
+        hd95s.append(np.around(hd95_score, decimals=4))
     
-    
+    # 求dice
+    for i in range(len(seg_tensors)):
+        print(i)
+        dice_score, _ = monai.metrics.DiceHelper(include_background=False, sigmoid=True, softmax=True,get_not_nans=True)(seg_tensors[i],gd_tensors[i] )
+        dice_score = dice_score.tolist()
+        print(dice_score)
+        dices.append(np.around(dice_score, decimals=4))
 
+    # 求IOU
+    for i in range(len(seg_tensors)):
+        print(i)
+        iou_score = monai.metrics.compute_iou(seg_tensors[i], gd_tensors[i], include_background=False, ignore_empty=True).tolist()
+        print(iou_score)
+        ious.append(np.around(iou_score, decimals=4))
+
+    # # 存入pandas
+    # data = {'dice': dices, 'iou': ious, 'NSD': nsds, 'ASD': asds, 'HD95': hd95s}
+    # df = pd.DataFrame(data=data, columns=['dice', 'iou', 'NSD', 'ASD', 'HD95'], index=case_name)
+    # df.to_csv(os.path.join(save_dir, 'metrics.csv'))
+    # 将数据从 Tensor 转换为列表
+    # dices = [dice.tolist() for dice in dices]
+    
+    # ious = [iou.tolist() for iou in ious]
+    
+    # nsds = [nsd.tolist() for nsd in nsds]
+    
+    # asds = [asd.tolist() for asd in asds]
+    
+    # hd95s = [hd95.tolist() for hd95 in hd95s]
+    
+    # 创建字典数据
+    data = {'dice': dices, 'iou': ious, 'NSD': nsds, 'ASD': asds, 'HD95': hd95s}
+
+    # 创建 DataFrame
+    df = pd.DataFrame(data=data, columns=['dice', 'iou', 'NSD', 'ASD', 'HD95'], index=case_name)
+
+    # 保存为 CSV 文件
+    df.to_csv(os.path.join(save_dir, 'metrics.csv'))
 
 #     # for i in range(len(seg_tensors)):
 #     #     print(i)
