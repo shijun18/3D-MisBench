@@ -219,7 +219,7 @@ class nnUNetTrainer(object):
                 self.network = self.build_network_architecture(self.plans_manager, self.dataset_json,
                                                             self.configuration_manager,
                                                             self.num_input_channels,
-                                                            enable_deep_supervision=True).to(self.device)
+                                                            enable_deep_supervision=False).to(self.device)
             else:
                 self.network = get_my_network_from_plans(self.plans_manager, self.dataset_json,
                                                      self.configuration_manager,
