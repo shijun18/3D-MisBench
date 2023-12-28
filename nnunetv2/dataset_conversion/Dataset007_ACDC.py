@@ -44,11 +44,13 @@ def copy_files(src_data_folder: Path, train_dir: Path, labels_dir: Path, test_di
         for file in patient_dir.iterdir():
             if file.suffix == ".gz" and "_gt" not in file.name and "_4d" not in file.name:
                 shutil.copy(file, test_dir / f"{file.stem.split('.')[0]}_0000.nii.gz")
+            elif file.suffix == ".gz" and "_gt" in file.name:
+                shutil.copy(file, labels_dir / file.name.replace("_gt", ""))
 
     return num_training_cases
 
 
-def convert_acdc(src_data_folder: str, dataset_id=27):
+def convert_acdc(src_data_folder: str, dataset_id=7):
     out_dir, train_dir, labels_dir, test_dir = make_out_dirs(dataset_id=dataset_id)
     num_training_cases = copy_files(Path(src_data_folder), train_dir, labels_dir, test_dir)
 
@@ -79,7 +81,7 @@ if __name__ == "__main__":
         help="The downloaded ACDC dataset dir. Should contain extracted 'training' and 'testing' folders.",
     )
     parser.add_argument(
-        "-d", "--dataset_id", required=False, type=int, default=27, help="nnU-Net Dataset ID, default: 27"
+        "-d", "--dataset_id", required=False, type=int, default=7, help="nnU-Net Dataset ID, default: 7"
     )
     args = parser.parse_args()
     print("Converting...")
