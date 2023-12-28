@@ -19,6 +19,12 @@ def get_my_network_from_plans(plans_manager: PlansManager,
                                 decoder_use_batchnorm=True, decoder_channels=(256, 128, 64, 32, 16), 
                                 decoder_attention_type=None, in_channels=num_input_channels, classes=label_manager.num_segmentation_heads,
                                 )
+        
+    elif(model == 'unet_ori'):
+        model = smp.Unet(encoder_name='resnet34', encoder_depth=5, encoder_weights='imagenet', decoder_use_batchnorm=True, 
+                         decoder_channels=(256, 128, 64, 32, 16), decoder_attention_type=None, 
+                         in_channels=num_input_channels, classes=label_manager.num_segmentation_heads)
+        
     elif(model == 'manet'):
         model = smp.MAnet(encoder_name='resnet34', encoder_depth=5, encoder_weights='imagenet', 
                           decoder_use_batchnorm=True, decoder_channels=(256, 128, 64, 32, 16), 
