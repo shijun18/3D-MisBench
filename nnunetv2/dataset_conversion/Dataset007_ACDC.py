@@ -13,16 +13,18 @@ def make_out_dirs(dataset_id: int, task_name="ACDC"):
     out_train_dir = out_dir / "imagesTr"
     out_labels_dir = out_dir / "labelsTr"
     out_test_dir = out_dir / "imagesTs"
+    out_test_label_dir = out_dir / "labelsTs"
 
     os.makedirs(out_dir, exist_ok=True)
     os.makedirs(out_train_dir, exist_ok=True)
     os.makedirs(out_labels_dir, exist_ok=True)
     os.makedirs(out_test_dir, exist_ok=True)
+    os.makedirs(out_test_label_dir, exist_ok=True)
 
-    return out_dir, out_train_dir, out_labels_dir, out_test_dir
+    return out_dir, out_train_dir, out_labels_dir, out_test_dir, out_test_label_dir
 
 
-def copy_files(src_data_folder: Path, train_dir: Path, labels_dir: Path, test_dir: Path):
+def copy_files(src_data_folder: Path, train_dir: Path, labels_dir: Path, test_dir: Path, test_labels_dir: Path):
     """Copy files from the ACDC dataset to the nnUNet dataset folder. Returns the number of training cases."""
     patients_train = sorted([f for f in (src_data_folder / "training").iterdir() if f.is_dir()])
     patients_test = sorted([f for f in (src_data_folder / "testing").iterdir() if f.is_dir()])
