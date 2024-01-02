@@ -15,9 +15,9 @@ from batchgenerators.utilities.file_and_folder_operations import *
 
 if __name__ == '__main__':
 
-    seg_path = '/staff/wangtiantong/nnU-Net/output/unet_1_027'
-    gd_path = "/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_raw/Dataset027_ACDC/labelsTs"
-    save_dir = '/staff/wangtiantong/nnU-Net/output/unet_1_027/metrics'
+    seg_path = '/staff/wangbingxun/projects/nnUnet/output/056'
+    gd_path = "/staff/wangbingxun/projects/nnUnet/nnUNetFrame/DATASET/nnUNet_raw/Dataset056_SegTHOR/labelsTr"
+    save_dir = '/staff/wangbingxun/projects/nnUnet/output/056'
     seg = sorted(os.listdir(seg_path))
 
     dices = []
@@ -48,61 +48,67 @@ if __name__ == '__main__':
             seg_ = nib.load(os.path.join(seg_path, name))
             seg_arr = seg_.get_fdata()
             seg_tensor = torch.from_numpy(seg_arr)
-            # # (B,C,H,W,D)
-            # seg_tensor = seg_tensor.unsqueeze(0)
-            # seg_tensor = seg_tensor.unsqueeze(0)
-            # print(seg_tensor.shape)
-            # seg_tensors.append(seg_tensor)
-            # seg_list.append(seg_arr)
-            num_classes = num_labels
-            H,W,D = seg_tensor.shape
-            binary_seg_tensor = torch.zeros((num_classes,H,W,D),dtype=torch.float)
-            binary_gd_tensor = torch.zeros((num_classes,H,W,D),dtype=torch.float)
-
-            # for h in range(H):
-            #     for w in range(W):
-            #         for d in range(D):
-            #             value = seg_tensor[h, w, d]
-            #             value = value.int()
-            #             binary_seg_tensor[value, h, w, d] = 1.0
-            for class_idx in range(num_classes):
-                class_mask = torch.eq(seg_tensor, class_idx)
-                binary_seg_tensor[class_idx] = class_mask.float()
-            binary_seg_tensor = binary_seg_tensor.unsqueeze(0)
-            seg_tensors.append(binary_seg_tensor)
-
-            print(binary_seg_tensor.shape)
-
-
 
             gd_ = nib.load(os.path.join(gd_path, name))
             gd_arr = gd_.get_fdata()
             gd_tensor = torch.from_numpy(gd_arr)
-            # (B,C,H,W,D)
-            # gd_tensor = gd_tensor.unsqueeze(0)
-            # gd_tensor = gd_tensor.unsqueeze(0)
-            # print(gd_tensor.shape)
-            # gd_tensors.append(gd_tensor)
-            # gd_list.append(gd_arr)
-            # for h in range(H):
-            #     for w in range(W):
-            #         for d in range(D):
-            #             value = gd_tensor[h, w, d]
-            #             value = value.int()
-            #             binary_gd_tensor[value, h, w, d] = 1.0
-            for class_idx in range(num_classes):
-                class_mask = torch.eq(gd_tensor, class_idx)
-                binary_gd_tensor[class_idx] = class_mask.float()
-            binary_gd_tensor = binary_gd_tensor.unsqueeze(0)
-            gd_tensors.append(binary_gd_tensor)
-            print(binary_gd_tensor.shape)
 
-            case_name.append(name)
+            dim = seg_tensor.ndim
+            
+            # 单模态：[H,W,D] -> [num_classes,H,W,D] -> [1,num_classes,H,W,D]
+            # 多模态：[C,H,W,D] -> [C,num_classes,H,W,D]
+                
+            if dim ==3:
+                num_classes = num_labels
+                H,W,D = seg_tensor.shape
+                binary_seg_tensor = torch.zeros((num_classes,H,W,D),dtype=torch.float)
+                binary_gd_tensor = torch.zeros((num_classes,H,W,D),dtype=torch.float)
 
-            # gd_ = nib.load(os.path.join(gd_path, name))
-            # gd_arr = gd_.get_fdata().astype('float32')
-            # gd_tensor = torch.from_numpy(gd_arr)
-            # print(gd_tensor.shape)
+                
+                for class_idx in range(num_classes):
+                    class_mask = torch.eq(seg_tensor, class_idx)
+                    binary_seg_tensor[class_idx] = class_mask.float()
+                binary_seg_tensor = binary_seg_tensor.unsqueeze(0)
+                seg_tensors.append(binary_seg_tensor)
+
+                print(binary_seg_tensor.shape)
+
+
+                for class_idx in range(num_classes):
+                    class_mask = torch.eq(gd_tensor, class_idx)
+                    binary_gd_tensor[class_idx] = class_mask.float()
+                binary_gd_tensor = binary_gd_tensor.unsqueeze(0)
+                gd_tensors.append(binary_gd_tensor)
+
+                print(binary_gd_tensor.shape)
+
+                case_name.append(name)
+            
+            elif dim == 4:
+                num_classes = num_labels
+                C,H,W,D = seg_tensor.shape
+                binary_seg_tensor = torch.zeros((C,num_classes,H,W,D),dtype=torch.float)
+                binary_gd_tensor = torch.zeros((C,num_classes,H,W,D),dtype=torch.float)
+
+                for c in range(C):
+                    for class_idx in range(num_classes):
+                        class_mask = torch.eq(seg_tensor[c], class_idx)
+                        binary_seg_tensor[c, class_idx] = class_mask.float()
+                seg_tensors.append(binary_seg_tensor)
+
+                print(binary_seg_tensor.shape)
+
+                for c in range(C):
+                    for class_idx in range(num_classes):
+                        class_mask = torch.eq(gd_tensor[c], class_idx)
+                        binary_gd_tensor[c, class_idx] = class_mask.float()
+                gd_tensors.append(binary_gd_tensor)
+
+                print(binary_gd_tensor.shape)
+
+                case_name.append(name)
+
+
     
     print('11111111111111')
 
@@ -135,7 +141,7 @@ if __name__ == '__main__':
     # 求dice
     for i in range(len(seg_tensors)):
         print(i)
-        dice_score, _ = monai.metrics.DiceHelper(include_background=False, sigmoid=True, softmax=True,get_not_nans=True)(seg_tensors[i],gd_tensors[i] )
+        dice_score= monai.metrics.DiceMetric(include_background=False, reduction="mean", get_not_nans=False, ignore_empty=True, num_classes=None)(seg_tensors[i],gd_tensors[i] )
         dice_score = dice_score.tolist()
         print(dice_score)
         dices.append(np.around(dice_score, decimals=4))

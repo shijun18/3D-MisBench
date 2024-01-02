@@ -31,12 +31,34 @@ def convert_VerSe(src_data_folder: str, dataset_id=6):
 
     train_file_list = []
 
+    abandon_file = ['sub-verse018_ct.nii.gz',
+                    'sub-verse257_ct.nii.gz',
+                    'sub-verse577_dir-ax_ct.nii.gz',
+                    'sub-verse593_dir-sag_ct.nii.gz',
+                    'sub-verse525_dir-sag_ct.nii.gz',
+                    'sub-verse549_ct.nii.gz',
+                    'sub-verse563_dir-iso_ct.nii.gz',
+                    'sub-verse531_ct.nii.gz',
+                    'sub-verse644_ct.nii.gz',
+                    'sub-verse572_dir-sag_ct.nii.gz',
+                    'sub-verse769_ct.nii.gz',
+                    'sub-verse650_dir-iso_ct.nii.gz',
+                    'sub-verse813_dir-sag_ct.nii.gz',
+                    'sub-verse651_dir-iso_ct.nii.gz',
+                    'sub-verse700_dir-sag_ct.nii.gz',
+                    'sub-verse711_ct.nii.gz',
+                    'sub-verse833_dir-ax_ct.nii.gz',
+                    'sub-verse761_ct.nii.gz',
+                    'sub-verse641_dir-ax_ct.nii.gz',
+                    'sub-verse642_dir-sag_ct.nii.gz',
+                    'sub-verse806_ct.nii.gz']
+
     # 使用os.walk()遍历目录及其子目录
     for root, dirs, files in os.walk(directory):
         # 遍历文件
         for file in files:
             # 判断文件名是否以指定后缀结尾
-            if file.endswith(train_suffix):
+            if file.endswith(train_suffix) and file not in abandon_file:
                 file = os.path.join(root, file)
                 # 将文件路径添加到列表中
                 train_file_list.append(file)
@@ -46,7 +68,7 @@ def convert_VerSe(src_data_folder: str, dataset_id=6):
     # print(len(train_file_list))
 
     patients_train = sorted(train_file_list)
-    patients_test = random.sample(patients_train, 74)
+    patients_test = random.sample(patients_train, 73)
     patients_train = [f for f in patients_train if f not in patients_test]
     num_training_cases = len(patients_train)
 

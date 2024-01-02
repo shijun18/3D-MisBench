@@ -83,7 +83,7 @@ def get_network_from_plans(plans_manager: PlansManager,
         **conv_or_blocks_per_stage,
         **kwargs[segmentation_network_class_name]
     )
-    model.apply(InitWeights_He(1e-2))
+    # model.apply(InitWeights_He(1e-2))
     if network_class == ResidualEncoderUNet:
         model.apply(init_last_bn_before_add_to_0)
     return model
