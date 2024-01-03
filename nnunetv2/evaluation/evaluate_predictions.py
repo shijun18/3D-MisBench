@@ -3,7 +3,7 @@ import os
 from copy import deepcopy
 from multiprocessing import Pool
 from typing import Tuple, List, Union, Optional
-
+import torch
 import numpy as np
 from batchgenerators.utilities.file_and_folder_operations import subfiles, join, save_json, load_json, \
     isfile
@@ -15,6 +15,7 @@ from nnunetv2.imageio.simpleitk_reader_writer import SimpleITKIO
 # the Evaluator class of the previous nnU-Net was great and all but man was it overengineered. Keep it simple
 from nnunetv2.utilities.json_export import recursive_fix_for_json_export
 from nnunetv2.utilities.plans_handling.plans_handler import PlansManager
+import monai
 
 
 def label_or_region_to_key(label_or_region: Union[int, Tuple[int]]):
@@ -108,9 +109,21 @@ def compute_metrics(reference_file: str, prediction_file: str, image_reader_writ
         if tp + fp + fn == 0:
             results['metrics'][r]['Dice'] = np.nan
             results['metrics'][r]['IoU'] = np.nan
+            results['metrics'][r]['ASD'] = np.nan
+            results['metrics'][r]['NSD'] = np.nan
+            results['metrics'][r]['HD95'] = np.nan
         else:
             results['metrics'][r]['Dice'] = 2 * tp / (2 * tp + fp + fn)
             results['metrics'][r]['IoU'] = tp / (tp + fp + fn)
+            results['metrics'][r]['NSD'] = 2 * tp / (2 * tp + 3*fp + 3*fn)
+            results['metrics'][r]['ASD'] = (fp + fn) / (2 * tp + fp + fn)
+            mask_p = torch.tensor(mask_pred).unsqueeze(0).unsqueeze(0)
+            mask_r = torch.tensor(mask_ref).unsqueeze(0).unsqueeze(0)
+            results['metrics'][r]['HD95'] = np.array(monai.metrics.compute_hausdorff_distance(mask_p, mask_r, include_background=False, 
+                                                                                     distance_metric='euclidean', percentile=95, 
+                                                                                     directed=False, spacing=None))
+            print(results['metrics'][r]['HD95'])
+            results['metrics'][r]['HD95'] = results['metrics'][r]['HD95'][0][0]
         results['metrics'][r]['FP'] = fp
         results['metrics'][r]['TP'] = tp
         results['metrics'][r]['FN'] = fn
