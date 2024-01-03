@@ -16,20 +16,20 @@ def get_my_network_from_plans(plans_manager: PlansManager,
     label_manager = plans_manager.get_label_manager(dataset_json)
     if(model == 'unet++'):
         model = smp.UnetPlusPlus(encoder_name='resnet34',
-                                encoder_depth=5, encoder_weights='imagenet', 
+                                encoder_depth=5, encoder_weights=None, 
                                 decoder_use_batchnorm=True, decoder_channels=(256, 128, 64, 32, 16), 
                                 decoder_attention_type=None, in_channels=num_input_channels, classes=label_manager.num_segmentation_heads,
                                 )
         
     elif(model == 'unet_ori'):
-        model = smp.Unet(encoder_name='resnet34', encoder_depth=5, encoder_weights='imagenet', decoder_use_batchnorm=True, 
+        model = smp.Unet(encoder_name='resnet34', encoder_depth=5, encoder_weights=None, decoder_use_batchnorm=True, 
                          decoder_channels=(256, 128, 64, 32, 16), decoder_attention_type=None, 
                          in_channels=num_input_channels, classes=label_manager.num_segmentation_heads)
     
     elif(model == '3dunet'):
 
         model = UNet3D(in_channels=num_input_channels,
-                                     out_channels=label_manager.num_segmentation_heads,)
+                                     out_channels=label_manager.num_segmentation_heads)
         
     # elif(model == 'manet'):
     #     model = smp.MAnet(encoder_name='resnet34', encoder_depth=5, encoder_weights='imagenet', 
@@ -62,10 +62,10 @@ def get_my_network_from_plans(plans_manager: PlansManager,
     #                         decoder_channels=256, in_channels=num_input_channels, classes=label_manager.num_segmentation_heads, 
     #                         activation=None, upsampling=8, aux_params=None)
                             
-    # elif(model == 'deeplabv3+'):
-    #     model = smp.DeepLabV3Plus(encoder_name='resnet34', encoder_depth=5, encoder_weights='imagenet', encoder_output_stride=16, 
-    #                             decoder_channels=256, decoder_atrous_rates=(12, 24, 36), 
-    #                             in_channels=num_input_channels, classes=label_manager.num_segmentation_heads, 
-    #                             activation=None, upsampling=4, aux_params=None)
+    elif(model == 'deeplabv3+'):
+        model = smp.DeepLabV3Plus(encoder_name='resnet34', encoder_depth=5, encoder_weights=None, encoder_output_stride=16, 
+                                decoder_channels=256, decoder_atrous_rates=(12, 24, 36), 
+                                in_channels=num_input_channels, classes=label_manager.num_segmentation_heads, 
+                                activation=None, upsampling=4, aux_params=None)
     
     return model

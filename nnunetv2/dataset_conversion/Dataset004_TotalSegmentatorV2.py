@@ -43,7 +43,7 @@ def convert_TotalSegmentatorV2(src_data_folder: str, dataset_id=4):
     
     for c in patients_test:
         shutil.copy(join(src_data_folder, c, 'seg.nii.gz'), join(labelstr, c + '.nii.gz'))
-        shutil.copy(join(src_data_folder, c, c + 'ct.nii.gz'), join(imagests, c + '_0000.nii.gz'))
+        shutil.copy(join(src_data_folder, c, 'ct.nii.gz'), join(imagests, c + '_0000.nii.gz'))
 
 
     generate_dataset_json(

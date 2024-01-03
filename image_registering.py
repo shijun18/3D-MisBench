@@ -40,7 +40,7 @@ def img_register(path_to_ct_image:PathType,path_to_mri_image:PathType,case_id,sr
     
 
     # 输出metric
-    rigid_registration.AddCommand(sitk.sitkIterationEvent, print_metric(rigid_registration))
+    #rigid_registration.AddCommand(sitk.sitkIterationEvent, print_metric(rigid_registration))
 
 
     # 执行刚性配准
@@ -65,7 +65,7 @@ def img_register(path_to_ct_image:PathType,path_to_mri_image:PathType,case_id,sr
     bspline_registration.SetInitialTransform(bspline_transform)
 
     # 输出metric
-    bspline_registration.AddCommand(sitk.sitkIterationEvent, print_metric(bspline_registration))
+    #bspline_registration.AddCommand(sitk.sitkIterationEvent, print_metric(bspline_registration))
 
     # 执行非刚性配准
     final_transform = bspline_registration.Execute(ct_image, rigid_registered_mri_image)
