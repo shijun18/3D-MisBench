@@ -6,7 +6,7 @@ from dynamic_network_architectures.initialization.weight_init import init_last_b
 from nnunetv2.utilities.network_initialization import InitWeights_He
 from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager, PlansManager
 from torch import nn
-from nnunetv2.mymodel.unet_3d import Unet3d
+from nnunetv2.mymodel.unet_3d import UNet3D
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -28,8 +28,8 @@ def get_my_network_from_plans(plans_manager: PlansManager,
     
     elif(model == '3dunet'):
 
-        model = Unet3d(in_channels=num_input_channels,
-                        class_num=label_manager.num_segmentation_heads,)
+        model = UNet3D(in_channels=num_input_channels,
+                        out_channels=label_manager.num_segmentation_heads,)
         
     # elif(model == 'manet'):
     #     model = smp.MAnet(encoder_name='resnet34', encoder_depth=5, encoder_weights='imagenet', 
