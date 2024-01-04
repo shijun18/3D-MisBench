@@ -117,8 +117,11 @@ def compute_metrics(reference_file: str, prediction_file: str, image_reader_writ
             results['metrics'][r]['IoU'] = tp / (tp + fp + fn)
             results['metrics'][r]['NSD'] = 2 * tp / (2 * tp + 3*fp + 3*fn)
             results['metrics'][r]['ASD'] = (fp + fn) / (2 * tp + fp + fn)
-            mask_p = torch.tensor(mask_pred).unsqueeze(0).unsqueeze(0)
-            mask_r = torch.tensor(mask_ref).unsqueeze(0).unsqueeze(0)
+
+            mask_p = torch.tensor(mask_pred).unsqueeze(0)
+            mask_r = torch.tensor(mask_ref).unsqueeze(0)
+            print('mask_p:',mask_p.size())
+            print('mask_r:',mask_r.size())
             results['metrics'][r]['HD95'] = np.array(monai.metrics.compute_hausdorff_distance(mask_p, mask_r, include_background=False, 
                                                                                      distance_metric='euclidean', percentile=95, 
                                                                                      directed=False, spacing=None))
