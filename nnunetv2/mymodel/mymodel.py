@@ -6,7 +6,7 @@ from dynamic_network_architectures.initialization.weight_init import init_last_b
 from nnunetv2.utilities.network_initialization import InitWeights_He
 from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager, PlansManager
 from torch import nn
-from nnunetv2.mymodel.unet_3d import UNet3D
+from nnunetv2.mymodel.unet_3d import Unet3d
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -14,7 +14,7 @@ def get_my_network_from_plans(plans_manager: PlansManager,
                            num_input_channels: int,
                            model: str):
     label_manager = plans_manager.get_label_manager(dataset_json)
-    if(model == 'unet++'):
+    if(model == 'unetpp'):
         model = smp.UnetPlusPlus(encoder_name='resnet34',
                                 encoder_depth=5, encoder_weights=None, 
                                 decoder_use_batchnorm=True, decoder_channels=(256, 128, 64, 32, 16), 
@@ -28,8 +28,8 @@ def get_my_network_from_plans(plans_manager: PlansManager,
     
     elif(model == '3dunet'):
 
-        model = UNet3D(in_channels=num_input_channels,
-                                     out_channels=label_manager.num_segmentation_heads)
+        model = Unet3d(in_channels=num_input_channels,
+                        class_num=label_manager.num_segmentation_heads,)
         
     # elif(model == 'manet'):
     #     model = smp.MAnet(encoder_name='resnet34', encoder_depth=5, encoder_weights='imagenet', 
@@ -63,7 +63,7 @@ def get_my_network_from_plans(plans_manager: PlansManager,
     #                         activation=None, upsampling=8, aux_params=None)
                             
     elif(model == 'deeplabv3+'):
-        model = smp.DeepLabV3Plus(encoder_name='resnet34', encoder_depth=5, encoder_weights=None, encoder_output_stride=16, 
+        model = smp.DeepLabV3Plus(encoder_name='resnet34', encoder_depth=5, encoder_weights='imagenet', encoder_output_stride=16, 
                                 decoder_channels=256, decoder_atrous_rates=(12, 24, 36), 
                                 in_channels=num_input_channels, classes=label_manager.num_segmentation_heads, 
                                 activation=None, upsampling=4, aux_params=None)
