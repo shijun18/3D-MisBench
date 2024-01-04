@@ -1278,16 +1278,17 @@ class nnUNetTrainer(object):
 
     def run_training(self):
         self.on_train_start()
-
+        # epoch循环
         for epoch in range(self.current_epoch, self.num_epochs):
             self.on_epoch_start()
-
+            # 训练
             self.on_train_epoch_start()
             train_outputs = []
+            # batch循环
             for batch_id in range(self.num_iterations_per_epoch):
                 train_outputs.append(self.train_step(next(self.dataloader_train)))
             self.on_train_epoch_end(train_outputs)
-
+            # 验证
             with torch.no_grad():
                 self.on_validation_epoch_start()
                 val_outputs = []

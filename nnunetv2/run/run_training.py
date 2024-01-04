@@ -252,7 +252,7 @@ def run_training_entry():
                          "(GPU), 'cpu' (CPU) and 'mps' (Apple M1/M2). Do NOT use this to set which GPU ID! "
                          "Use CUDA_VISIBLE_DEVICES=X nnUNetv2_train [...] instead!")
     parser.add_argument('--model', type=str,required=False,default='unet',
-                        help='model that to be used in the training')
+                        help='model that to be used in the training, optional models: unet, unetpp, 3dunet, ')
     args = parser.parse_args()
 
     assert args.device in ['cpu', 'cuda', 'mps'], f'-device must be either cpu, mps or cuda. Other devices are not tested/supported. Got: {args.device}.'
@@ -268,7 +268,8 @@ def run_training_entry():
         device = torch.device('cuda')
     else:
         device = torch.device('mps')
-
+    if args.model != 'unet':
+        args.tr = 'nnUNetTrainer_' + args.model
     run_training(args.dataset_name_or_id, args.configuration, args.fold, args.tr, args.p, args.pretrained_weights,
                  args.num_gpus, args.use_compressed, args.npz, args.c, args.val, args.disable_checkpointing, args.val_best,model = args.model,
                  device=device)
