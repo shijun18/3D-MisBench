@@ -63,7 +63,7 @@ def get_my_network_from_plans(plans_manager: PlansManager,
     #                         activation=None, upsampling=8, aux_params=None)
                             
     elif(model == 'deeplabv3p'):
-        model = smp.DeepLabV3Plus(encoder_name='resnet34', encoder_depth=5, encoder_weights='imagenet', encoder_output_stride=16, 
+        model = smp.DeepLabV3Plus(encoder_name='resnet34', encoder_depth=5, encoder_weights=None, encoder_output_stride=16, 
                                 decoder_channels=256, decoder_atrous_rates=(12, 24, 36), 
                                 in_channels=num_input_channels, classes=label_manager.num_segmentation_heads, 
                                 activation=None, upsampling=4, aux_params=None)
