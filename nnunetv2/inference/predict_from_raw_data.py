@@ -98,8 +98,17 @@ class nnUNetPredictor(object):
         num_input_channels = determine_num_input_channels(plans_manager, configuration_manager, dataset_json)
         trainer_class = recursive_find_python_class(join(nnunetv2.__path__[0], "training", "nnUNetTrainer"),
                                                     trainer_name, 'nnunetv2.training.nnUNetTrainer')
-        network = trainer_class.build_network_architecture(plans_manager, dataset_json, configuration_manager,
+        print(trainer_name)
+        if trainer_name == 'nnUNetTrainer':
+            print("111111111111")
+            network = trainer_class.build_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, enable_deep_supervision=False)
+        else:
+            print("2222222222222")
+            model = trainer_name.split("nnUNetTrainer_")[1]
+            print(model)
+            network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
+                                                           num_input_channels, model)
         self.plans_manager = plans_manager
         self.configuration_manager = configuration_manager
         self.list_of_parameters = parameters

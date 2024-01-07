@@ -6,7 +6,7 @@ PathType = Union[str, Path, Iterable[str], Iterable[Path]]
 
 
 def print_metric(optimizer):
-    print('Iteration: {0}, Metric value: {1}'.format(optimizer.GetOptimizerIteration(), optimizer.GetMetricValue()))
+    print('Iteration: {0}, Metric value: {1}'.format(int(optimizer.GetOptimizerIteration()), optimizer.GetMetricValue()))
 
 def img_register(path_to_ct_image:PathType,path_to_mri_image:PathType,case_id,src):
     # 加载CT和MRI图像
@@ -17,7 +17,7 @@ def img_register(path_to_ct_image:PathType,path_to_mri_image:PathType,case_id,sr
     print("MRI图像数据类型：", mri_image.GetPixelIDTypeAsString())
     print("CT图像维度：", ct_image.GetDimension())
     print("MRI图像维度：", mri_image.GetDimension())
-# 转换数据类型会不会造成影响？
+
     mri_image = sitk.Cast(mri_image, sitk.sitkFloat32)
     ct_image = sitk.Cast(ct_image, sitk.sitkFloat32)
 
@@ -27,7 +27,7 @@ def img_register(path_to_ct_image:PathType,path_to_mri_image:PathType,case_id,sr
 
     # 设置刚性配准方法和度量标准
     rigid_registration.SetMetricAsMeanSquares()  # 使用均方差作为度量标准
-    rigid_registration.SetOptimizerAsGradientDescent(learningRate=1.0, numberOfIterations=100, convergenceMinimumValue=1e-6, convergenceWindowSize=10)  # 使用梯度下降优化算法
+    rigid_registration.SetOptimizerAsGradientDescent(learningRate=0.1, numberOfIterations=100, convergenceMinimumValue=1e-6, convergenceWindowSize=10)  # 使用梯度下降优化算法
     rigid_registration.SetInterpolator(sitk.sitkLinear)  # 线性插值器
 
     # 设置优化器尺度
@@ -38,9 +38,9 @@ def img_register(path_to_ct_image:PathType,path_to_mri_image:PathType,case_id,sr
                                                       sitk.CenteredTransformInitializerFilter.GEOMETRY)
     rigid_registration.SetInitialTransform(initial_transform)
     
-
+    print("111111111111")
     # 输出metric
-    #rigid_registration.AddCommand(sitk.sitkIterationEvent, print_metric(rigid_registration))
+    rigid_registration.AddCommand(sitk.sitkIterationEvent, print(rigid_registration.GetOptimizerIteration()))
 
 
     # 执行刚性配准
@@ -48,8 +48,9 @@ def img_register(path_to_ct_image:PathType,path_to_mri_image:PathType,case_id,sr
 
     # 应用刚性配准变换到MRI图像
     rigid_registered_mri_image = sitk.Resample(mri_image, ct_image, rigid_transform, sitk.sitkLinear, 0.0, mri_image.GetPixelID())
-
-
+    print("2222222222222222")
+    print("MMR图像数据类型", rigid_registered_mri_image.GetPixelIDTypeAsString())
+    print("MMR图像大小", rigid_registered_mri_image.GetSize())
     
     # 非刚性配准(B样条)
     # 创建非刚性配准器
@@ -57,25 +58,27 @@ def img_register(path_to_ct_image:PathType,path_to_mri_image:PathType,case_id,sr
 
     # 设置非刚性配准方法和度量标准
     bspline_registration.SetMetricAsMattesMutualInformation()  # 使用互信息作为度量标准
-    bspline_registration.SetOptimizerAsLBFGSB(gradientConvergenceTolerance=1e-5, numberOfIterations=100)  # 使用L-BFGS-B算法
+    bspline_registration.SetOptimizerAsLBFGSB(gradientConvergenceTolerance=1e-5, numberOfIterations=20)  # 使用L-BFGS-B算法
     bspline_registration.SetInterpolator(sitk.sitkLinear)  # 线性插值器
-
+    print("33333333333333333")
     # 设置初始变换
-    bspline_transform = sitk.BSplineTransformInitializer(ct_image, [8, 8, 8], order=3)
+    bspline_transform = sitk.BSplineTransformInitializer(ct_image, [6, 6, 6], order=3)
     bspline_registration.SetInitialTransform(bspline_transform)
 
     # 输出metric
     #bspline_registration.AddCommand(sitk.sitkIterationEvent, print_metric(bspline_registration))
-
+    print("444444444444444444")
     # 执行非刚性配准
     final_transform = bspline_registration.Execute(ct_image, rigid_registered_mri_image)
+
+    print("55555555555555555555555555")
 
     # 应用非刚性配准变换到MRI图像
     registered_mri_image = sitk.Resample(rigid_registered_mri_image, ct_image, final_transform, sitk.sitkLinear, 0.0, mri_image.GetPixelID())
    
     
     
-    sitk.WriteImage(registered_mri_image, join(src,case_id,case_id + '_IMG_MR_T1_Registered.nii.gz'))
+    sitk.WriteImage(registered_mri_image, join(src,case_id,case_id + '_IMG_MR_T1_Registered1.nii.gz'))
 
 if __name__ == "__main__":
 

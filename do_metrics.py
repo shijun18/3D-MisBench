@@ -15,9 +15,9 @@ from batchgenerators.utilities.file_and_folder_operations import *
 
 if __name__ == '__main__':
 
-    seg_path = '/staff/wangbingxun/projects/nnUnet/output/056'
-    gd_path = "/staff/wangbingxun/projects/nnUnet/nnUNetFrame/DATASET/nnUNet_raw/Dataset056_SegTHOR/labelsTr"
-    save_dir = '/staff/wangbingxun/projects/nnUnet/output/056'
+    seg_path = '/staff/wangbingxun/projects/nnUnet/output/100/2d'
+    gd_path = "/staff/wangbingxun/projects/nnUnet/nnUNetFrame/DATASET/nnUNet_raw/Dataset100_BrainTumour/labelsTr"
+    save_dir = '/staff/wangbingxun/projects/nnUnet/output/100/2d'
     seg = sorted(os.listdir(seg_path))
 
     dices = []
@@ -38,10 +38,9 @@ if __name__ == '__main__':
 
     seg_tensors = []
     gd_tensors = []
-    mean_dice_per_class = []
-    for i in range(num_labels):
-        list1 = []
-        mean_dice_per_class.append(list1)
+    
+
+
     for name in seg:
         if not name.startswith('.') and name.endswith('nii.gz'):
             # 加载label and segmentation image
@@ -112,63 +111,150 @@ if __name__ == '__main__':
     
     print('11111111111111')
 
-
+    # mean_dice_per_class = []
+    # mean_nsd_per_class = []
+    # mean_asd_per_class = []
+    # mean_hd95_per_class = []
+    # mean_iou_per_class = []
+    # for i in range(num_labels):
+    #     list1 = []
+    #     mean_dice_per_class.append(list1)
+    #     mean_nsd_per_class.append(list1)
+    #     mean_asd_per_class.append(list1)
+    #     mean_hd95_per_class.append(list1)
+    #     mean_iou_per_class.append(list1)
     
+    mean_nsd_per_class = []
+    for i in range(num_labels):
+        list1 = []
+        mean_nsd_per_class.append(list1)
     # 求NSD
     for i in range(len(seg_tensors)):
         print(i)
-        thresholds_list1 = [1] * (num_labels - 1)
-        nsd_score = monai.metrics.compute_surface_dice(seg_tensors[i], gd_tensors[i], thresholds_list1, include_background=False, distance_metric='euclidean', spacing=None, use_subvoxels=False).tolist()
+        thresholds_list1 = [1] * (num_labels)
+        nsd_score = monai.metrics.compute_surface_dice(seg_tensors[i], gd_tensors[i], thresholds_list1, include_background=True, distance_metric='euclidean', spacing=None, use_subvoxels=False).tolist()
         print(nsd_score)
-        nsds.append(np.around(nsd_score, decimals=4))
+        nsds.append(np.around(nsd_score[0], decimals=4))
+        for j in range(num_classes):
+            mean_nsd_per_class[j].append(np.around(nsd_score[0][j], decimals=4))
+        print(mean_nsd_per_class)
 
-
+    mean_asd_per_class = []
+    for i in range(num_labels):
+        list1 = []
+        mean_asd_per_class.append(list1)
     # 求ASD
     for i in range(len(seg_tensors)):
         print(i)
-        asd_score = monai.metrics.compute_average_surface_distance(seg_tensors[i], gd_tensors[i], include_background=False, symmetric=False, distance_metric='euclidean', spacing=None).tolist()
+        asd_score = monai.metrics.compute_average_surface_distance(seg_tensors[i], gd_tensors[i], include_background=True, symmetric=False, distance_metric='euclidean', spacing=None).tolist()
         print(asd_score)
-        asds.append(np.around(asd_score, decimals=4))
+        asds.append(np.around(asd_score[0], decimals=4))
+        for j in range(num_classes):
+            mean_asd_per_class[j].append(np.around(asd_score[0][j], decimals=4))
+        print(mean_asd_per_class)
 
+    mean_hd95_per_class = []
+    for i in range(num_labels):
+        list1 = []
+        mean_hd95_per_class.append(list1)
     # 求HD95
     for i in range(len(seg_tensors)):
         print(i)
-        hd95_score = monai.metrics.compute_hausdorff_distance(seg_tensors[i], gd_tensors[i], include_background=False, distance_metric='euclidean', 
+        hd95_score = monai.metrics.compute_hausdorff_distance(seg_tensors[i], gd_tensors[i], include_background=True, distance_metric='euclidean', 
                                                                 percentile=95, directed=False, spacing=None).tolist()
         print(hd95_score)
-        hd95s.append(np.around(hd95_score, decimals=4))
-    
+        hd95s.append(np.around(hd95_score[0], decimals=4))
+        for j in range(num_classes):
+            mean_hd95_per_class[j].append(np.around(hd95_score[0][j], decimals=4))
+        print(mean_hd95_per_class)
+
+    mean_dice_per_class = []
+    for i in range(num_labels):
+        list1 = []
+        mean_dice_per_class.append(list1)
     # 求dice
     for i in range(len(seg_tensors)):
         print(i)
-        dice_score= monai.metrics.DiceMetric(include_background=False, reduction="mean", get_not_nans=False, ignore_empty=True, num_classes=None)(seg_tensors[i],gd_tensors[i] )
+        dice_score= monai.metrics.DiceMetric(include_background=True, reduction="mean", get_not_nans=False, ignore_empty=True, num_classes=None)(seg_tensors[i],gd_tensors[i] )
         dice_score = dice_score.tolist()
         print(dice_score)
-        dices.append(np.around(dice_score, decimals=4))
-        for j in range(num_classes - 1):
-            mean_dice_per_class[j].append(np.around(dice_score[j], decimals=4))
+        dices.append(np.around(dice_score[0], decimals=4))
+        for j in range(num_classes):
+            mean_dice_per_class[j].append(np.around(dice_score[0][j], decimals=4))
+        print(mean_dice_per_class)
 
+    mean_iou_per_class = []
+    for i in range(num_labels):
+        list1 = []
+        mean_iou_per_class.append(list1)
     # 求IOU
     for i in range(len(seg_tensors)):
         print(i)
-        iou_score = monai.metrics.compute_iou(seg_tensors[i], gd_tensors[i], include_background=False, ignore_empty=True).tolist()
+        iou_score = monai.metrics.compute_iou(seg_tensors[i], gd_tensors[i], include_background=True, ignore_empty=True).tolist()
         print(iou_score)
-        ious.append(np.around(iou_score, decimals=4))
+        ious.append(np.around(iou_score[0], decimals=4))
+        for j in range(num_classes):
+            mean_iou_per_class[j].append(np.around(iou_score[0][j], decimals=4))
+        print(mean_iou_per_class)
 
-
+    # 平均Dice：
     mean_dice_per_class_out = []
     for i in range(len(mean_dice_per_class)):
-
+        mean_dice_per_class[i] = np.nan_to_num(mean_dice_per_class[i], nan=0.0, posinf=0.0, neginf=0.0)
         mean_dice_per_class[i] = np.mean(mean_dice_per_class[i])
         print(mean_dice_per_class[i])
         mean_dice_per_class_out.append(mean_dice_per_class[i])
-
     print('mean_dice:', mean_dice_per_class_out)
+
+    # 平均iou：
+    mean_iou_per_class_out = []
+    for i in range(len(mean_iou_per_class)):
+        mean_iou_per_class[i] = np.nan_to_num(mean_iou_per_class[i], nan=0.0, posinf=0.0, neginf=0.0)
+        mean_iou_per_class[i] = np.mean(mean_iou_per_class[i])
+        print(mean_iou_per_class[i])
+        mean_iou_per_class_out.append(mean_iou_per_class[i])
+    print('mean_iou:', mean_iou_per_class_out)
+
+    # 平均nsd：
+    mean_nsd_per_class_out = []
+    for i in range(len(mean_nsd_per_class)):
+        mean_nsd_per_class[i] = np.nan_to_num(mean_nsd_per_class[i], nan=0.0, posinf=0.0, neginf=0.0)
+        mean_nsd_per_class[i] = np.mean(mean_nsd_per_class[i])
+        print(mean_nsd_per_class[i])
+        mean_nsd_per_class_out.append(mean_nsd_per_class[i])
+    print('mean_nsd:', mean_nsd_per_class_out)
+
+    # 平均asd：
+    mean_asd_per_class_out = []
+    for i in range(len(mean_asd_per_class)):
+        mean_asd_per_class[i] = np.nan_to_num(mean_asd_per_class[i], nan=0.0, posinf=0.0, neginf=0.0)
+        mean_asd_per_class[i] = np.mean(mean_asd_per_class[i])
+        print(mean_asd_per_class[i])
+        mean_asd_per_class_out.append(mean_asd_per_class[i])
+    print('mean_asd:', mean_asd_per_class_out)
+
+    # 平均hd95：
+    mean_hd95_per_class_out = []
+    for i in range(len(mean_hd95_per_class)):
+        mean_hd95_per_class[i] = np.nan_to_num(mean_hd95_per_class[i], nan=0.0, posinf=0.0, neginf=0.0)
+        mean_hd95_per_class[i] = np.mean(mean_hd95_per_class[i])
+        print(mean_hd95_per_class[i])
+        mean_hd95_per_class_out.append(mean_hd95_per_class[i])
+    print('mean_hd95:', mean_hd95_per_class_out)
+
+
+
+
     # 创建字典数据
     data = {'dice': dices, 'iou': ious, 'NSD': nsds, 'ASD': asds, 'HD95': hd95s}
 
     # 创建 DataFrame
     df = pd.DataFrame(data=data, columns=['dice', 'iou', 'NSD', 'ASD', 'HD95'], index=case_name)
+
+    df_mean = pd.DataFrame(data={'dice': mean_dice_per_class_out, 'iou': mean_iou_per_class_out, 'NSD': mean_nsd_per_class_out, 'ASD': mean_asd_per_class_out, 'HD95': mean_hd95_per_class_out},
+                           columns=['dice', 'iou', 'NSD', 'ASD', 'HD95'],index = ['mean'] * len(mean_dice_per_class_out))
+    df = pd.concat([df, df_mean])
+
 
     # 保存为 CSV 文件
     df.to_csv(os.path.join(save_dir, 'metrics_1.csv'))

@@ -202,6 +202,17 @@ class nnUNetTrainer(object):
                                "Nature methods, 18(2), 203-211.\n"
                                "#######################################################################\n",
                                also_print_to_console=True, add_timestamp=False)
+        
+    @staticmethod
+    def build_my_network_architecture(plans_manager: PlansManager,
+                           dataset_json: dict,
+                           configuration_manager: ConfigurationManager,
+                           num_input_channels: int,
+                           model: str):
+        return get_my_network_from_plans(plans_manager, dataset_json, configuration_manager,
+                                                           num_input_channels, model)
+          
+    
     # 初始化模型
     def initialize(self):
         if not self.was_initialized:
