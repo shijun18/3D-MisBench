@@ -12,6 +12,7 @@ from nnunetv2.mymodel.unet_3p1 import Generic_UNet3P
 # from holocron.models.segmentation import unet3p
 from nnunetv2.mymodel.unetr import UNETR
 from nnunetv2.mymodel.attentionunet import AttentionUnet
+from nnunetv2.mymodel.hrnet.hrnet import hrnet48
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -69,5 +70,10 @@ def get_my_network_from_plans(plans_manager: PlansManager,
                                 decoder_channels=256, decoder_atrous_rates=(12, 24, 36), 
                                 in_channels=num_input_channels, classes=label_manager.num_segmentation_heads, 
                                 activation=None, upsampling=4, aux_params=None)
+        
+    elif(model == 'hrnet'):
+        model = hrnet48(pretrained=False,progress=True,
+                        in_channels=num_input_channels,
+                        num_classes=label_manager.num_segmentation_heads)
     
     return model
