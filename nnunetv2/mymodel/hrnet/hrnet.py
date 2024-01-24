@@ -285,7 +285,7 @@ class HighResolutionNet(nn.Module):
         self.conv1 = nn.Conv2d(self.in_channels, 64, kernel_size=3, stride=2, padding=1,
                                bias=False)
         self.bn1 = self.norm_layer(64)
-        self.conv2 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1,
+        self.conv2 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1,
                                bias=False)
         self.bn2 = self.norm_layer(64)
         self.relu = nn.ReLU(inplace=True)
