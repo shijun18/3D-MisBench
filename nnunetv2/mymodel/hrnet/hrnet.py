@@ -269,15 +269,20 @@ class HighResolutionNet(nn.Module):
 
     def __init__(self,
                  cfg,
-                 norm_layer=None):
+                 in_channels,
+                 num_classes,
+                 norm_layer=None,
+                 ):
         super(HighResolutionNet, self).__init__()
 
         if norm_layer is None:
             norm_layer = nn.BatchNorm2d
+        self.num_classes = num_classes
+        self.in_channels = in_channels
         self.norm_layer = norm_layer
         # stem network
         # stem net
-        self.conv1 = nn.Conv2d(3, 64, kernel_size=3, stride=2, padding=1,
+        self.conv1 = nn.Conv2d(self.in_channels, 64, kernel_size=3, stride=2, padding=1,
                                bias=False)
         self.bn1 = self.norm_layer(64)
         self.conv2 = nn.Conv2d(64, 64, kernel_size=3, stride=2, padding=1,
@@ -326,7 +331,7 @@ class HighResolutionNet(nn.Module):
         self.stage4, pre_stage_channels = self._make_stage(
             self.stage4_cfg, num_channels, multi_scale_output=True)
         
-        last_inp_channels = np.int(np.sum(pre_stage_channels))
+        last_inp_channels = np.int_(np.sum(pre_stage_channels))
 
         self.last_layer = nn.Sequential(
             nn.Conv2d(
@@ -339,7 +344,7 @@ class HighResolutionNet(nn.Module):
             nn.ReLU(inplace=True),
             nn.Conv2d(
                 in_channels=last_inp_channels,
-                out_channels=19,
+                out_channels=self.num_classes,
                 kernel_size=1,
                 stride=1,
                 padding=0)
@@ -431,7 +436,10 @@ class HighResolutionNet(nn.Module):
 
 
     def forward(self, x):
+        B_,C_,H_,W_ = x.size()
+        # print('ori_x',x.size())
         x = self.conv1(x)
+        # print("x_after_conv1:",x.size())
         x = self.bn1(x)
         x = self.relu(x)
         x = self.conv2(x)
@@ -470,14 +478,46 @@ class HighResolutionNet(nn.Module):
         x = self.stage4(x_list)
 
         # Upsampling
+        # print("x0:",x[0].size())
         x0_h, x0_w = x[0].size(2), x[0].size(3)
         x1 = F.interpolate(x[1], size=(x0_h, x0_w), mode='bilinear')
         x2 = F.interpolate(x[2], size=(x0_h, x0_w), mode='bilinear')
         x3 = F.interpolate(x[3], size=(x0_h, x0_w), mode='bilinear')
 
         x = torch.cat([x[0], x1, x2, x3], 1)
-
+        # print("x_before",x.size())
         x = self.last_layer(x)
-
+        # print("x_after",x.size())
+        # print('num_classes,in_channels',self.num_classes,self.in_channels)
+        interp = nn.Upsample(size=(H_, W_), mode='bilinear', align_corners=True)
+        x = interp(x)
+ 
         return x
+    
+def _hrnet(arch, pretrained, progress,in_channels = 3,num_classes = 19, **kwargs):
+        
+    from nnunetv2.mymodel.hrnet.hrnet_config import MODEL_CONFIGS
+    model = HighResolutionNet(MODEL_CONFIGS[arch],in_channels = in_channels, num_classes = num_classes, **kwargs)
+    return model
+
+
+def hrnet18(pretrained=True, progress=True, **kwargs):
+    r"""HRNet-18 model
+    """
+    return _hrnet('hrnet18', pretrained, progress,
+                   **kwargs)
+
+
+def hrnet32(pretrained=True, progress=True, **kwargs):
+    r"""HRNet-32 model
+    """
+    return _hrnet('hrnet32', pretrained, progress,
+                   **kwargs)
+
+
+def hrnet48(pretrained=True, progress=True,in_channels = 3,num_classes = 19, **kwargs):
+    r"""HRNet-48 model
+    """
+    return _hrnet('hrnet48', pretrained, progress,in_channels = in_channels,num_classes = num_classes,
+                   **kwargs)
 

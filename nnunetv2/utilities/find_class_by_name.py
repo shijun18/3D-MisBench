@@ -22,3 +22,11 @@ def recursive_find_python_class(folder: str, class_name: str, current_module: st
             if tr is not None:
                 break
     return tr
+
+if __name__ == '__main__':
+    nnunet_trainer = recursive_find_python_class(join('/staff/wangtiantong/nnU-Net/nnUNet_new/nnUnet_reconstructinon/nnunetv2', "training", "nnUNetTrainer"),
+                                                'nnUNetTrainer_hrnet', 'nnunetv2.training.nnUNetTrainer')
+    if nnunet_trainer is not None:
+        print('找到了')
+    else:
+        print('没找到')

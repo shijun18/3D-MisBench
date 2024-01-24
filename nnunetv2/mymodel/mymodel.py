@@ -7,6 +7,8 @@ from nnunetv2.utilities.network_initialization import InitWeights_He
 from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager, PlansManager
 from torch import nn
 from nnunetv2.mymodel.unet_3d import UNet3D
+from nnunetv2.mymodel.hrnet.hrnet import hrnet48
+from nnunetv2.mymodel.ccnet.ccnet import Seg_Model
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -67,5 +69,14 @@ def get_my_network_from_plans(plans_manager: PlansManager,
                                 decoder_channels=256, decoder_atrous_rates=(12, 24, 36), 
                                 in_channels=num_input_channels, classes=label_manager.num_segmentation_heads, 
                                 activation=None, upsampling=4, aux_params=None)
+        
+    elif(model == 'hrnet'):
+        model = hrnet48(pretrained=False,progress=True,
+                        in_channels=num_input_channels,
+                        num_classes=label_manager.num_segmentation_heads)
+
+    elif(model == 'ccnet'):
+        model = Seg_Model(num_classes=label_manager.num_segmentation_heads,
+                          in_channels=num_input_channels,criterion=None, pretrained_model=None, recurrence=0,)
     
     return model
