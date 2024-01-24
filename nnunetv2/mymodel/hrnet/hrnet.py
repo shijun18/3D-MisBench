@@ -282,7 +282,7 @@ class HighResolutionNet(nn.Module):
         self.norm_layer = norm_layer
         # stem network
         # stem net
-        self.conv1 = nn.Conv2d(self.in_channels, 64, kernel_size=3, stride=1, padding=1,
+        self.conv1 = nn.Conv2d(self.in_channels, 64, kernel_size=3, stride=2, padding=1,
                                bias=False)
         self.bn1 = self.norm_layer(64)
         self.conv2 = nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1,
@@ -436,6 +436,7 @@ class HighResolutionNet(nn.Module):
 
 
     def forward(self, x):
+        B_,C_,H_,W_ = x.size()
         # print('ori_x',x.size())
         x = self.conv1(x)
         # print("x_after_conv1:",x.size())
@@ -488,6 +489,8 @@ class HighResolutionNet(nn.Module):
         x = self.last_layer(x)
         # print("x_after",x.size())
         # print('num_classes,in_channels',self.num_classes,self.in_channels)
+        interp = nn.Upsample(size=(H_, W_), mode='bilinear', align_corners=True)
+        x = interp(x)
  
         return x
     

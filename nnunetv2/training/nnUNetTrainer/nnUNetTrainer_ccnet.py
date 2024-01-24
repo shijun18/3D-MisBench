@@ -13,7 +13,7 @@ from nnunetv2.mymodel.mymodel import get_my_network_from_plans
 
 
 
-class nnUNetTrainer_hrnet(nnUNetTrainer):
+class nnUNetTrainer_ccnet(nnUNetTrainer):
     def initialize(self):
         if not self.was_initialized:
             ### Some hyperparameters for you to fiddle with
@@ -26,6 +26,7 @@ class nnUNetTrainer_hrnet(nnUNetTrainer):
             self.num_val_iterations_per_epoch = 50
             self.num_epochs = 300
             self.current_epoch = 0
+            # self.batch_size = 16
             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,
                                                                    self.dataset_json)
             

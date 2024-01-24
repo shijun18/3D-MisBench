@@ -8,11 +8,12 @@ from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager
 from torch import nn
 from nnunetv2.mymodel.unet_3d import UNet3D
 from nnunetv2.mymodel.unet_3p import UNet_3Plus
-from nnunetv2.mymodel.unet_3p1 import Generic_UNet3P
+# from nnunetv2.mymodel.unet_3p1 import Generic_UNet3P
 # from holocron.models.segmentation import unet3p
 from nnunetv2.mymodel.unetr import UNETR
 from nnunetv2.mymodel.attentionunet import AttentionUnet
 from nnunetv2.mymodel.hrnet.hrnet import hrnet48
+from nnunetv2.mymodel.ccnet.ccnet import Seg_Model
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -75,5 +76,8 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         model = hrnet48(pretrained=False,progress=True,
                         in_channels=num_input_channels,
                         num_classes=label_manager.num_segmentation_heads)
+    elif(model == 'ccnet'):
+        model = Seg_Model(num_classes=label_manager.num_segmentation_heads,
+                          in_channels=num_input_channels,criterion=None, pretrained_model=None, recurrence=0,)
     
     return model
