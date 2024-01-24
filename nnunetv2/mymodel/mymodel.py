@@ -7,8 +7,12 @@ from nnunetv2.utilities.network_initialization import InitWeights_He
 from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager, PlansManager
 from torch import nn
 from nnunetv2.mymodel.unet_3d import UNet3D
+from nnunetv2.mymodel.unet_3p import UNet_3Plus
+from nnunetv2.mymodel.unet_3p1 import Generic_UNet3P
+# from holocron.models.segmentation import unet3p
+from nnunetv2.mymodel.unetr import UNETR
+from nnunetv2.mymodel.attentionunet import AttentionUnet
 from nnunetv2.mymodel.hrnet.hrnet import hrnet48
-from nnunetv2.mymodel.ccnet.ccnet import Seg_Model
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -31,38 +35,35 @@ def get_my_network_from_plans(plans_manager: PlansManager,
     elif(model == '3dunet'):
 
         model = UNet3D(in_channels=num_input_channels,
-                        out_channels=label_manager.num_segmentation_heads,)
+                        out_channels=label_manager.num_segmentation_heads)
         
-    # elif(model == 'manet'):
-    #     model = smp.MAnet(encoder_name='resnet34', encoder_depth=5, encoder_weights='imagenet', 
-    #                       decoder_use_batchnorm=True, decoder_channels=(256, 128, 64, 32, 16), 
-    #                       decoder_pab_channels=64, in_channels=num_input_channels, classes=label_manager.num_segmentation_heads)
-
-    # elif(model == 'linknet'):
-    #     model = smp.Linknet(encoder_name='resnet34', encoder_depth=5, encoder_weights='imagenet', 
-    #                         decoder_use_batchnorm=True, in_channels=num_input_channels, classes=label_manager.num_segmentation_heads, 
-    #                         )
-
-    # elif(model == 'fpn'):
-    #     model = smp.FPN(encoder_name='resnet34', encoder_depth=5, encoder_weights='imagenet', 
-    #                     decoder_pyramid_channels=256, decoder_segmentation_channels=128, decoder_merge_policy='add', 
-    #                     decoder_dropout=0.2, in_channels=num_input_channels, 
-    #                     classes=label_manager.num_segmentation_heads, activation=None, upsampling=4)
-
-    # elif(model == 'pspnet'):
-    #     model = smp.PSPNet(encoder_name='resnet34', encoder_weights='imagenet', encoder_depth=3, psp_out_channels=512,
-    #                         psp_use_batchnorm=True, psp_dropout=0.2, in_channels=num_input_channels, 
-    #                         classes=label_manager.num_segmentation_heads, activation=None, upsampling=8)
-
-    # elif(model == 'panet'):
-    #     model = smp.PAN(encoder_name='resnet34', encoder_weights='imagenet', encoder_output_stride=16, decoder_channels=32, 
-    #                     in_channels=num_input_channels, classes=label_manager.num_segmentation_heads, 
-    #                     activation=None, upsampling=4, aux_params=None)
-
-    # elif(model =='deeplabv3'):
-    #     model = smp.DeepLabV3(encoder_name='resnet34', encoder_depth=5, encoder_weights='imagenet', 
-    #                         decoder_channels=256, in_channels=num_input_channels, classes=label_manager.num_segmentation_heads, 
-    #                         activation=None, upsampling=8, aux_params=None)
+    elif(model == 'unet3p'):
+        # print("model = unet3p")
+        # conv_op = nn.Conv2d
+        # dropout_op = nn.Dropout2d
+        # norm_op = nn.InstanceNorm2d
+        # norm_op_kwargs = {'eps': 1e-5, 'affine': True}
+        # dropout_op_kwargs = {'p': 0, 'inplace': True}
+        # net_nonlin = nn.LeakyReLU
+        # net_nonlin_kwargs = {'negative_slope': 1e-2, 'inplace': True}
+        # print(len(configuration_manager.pool_op_kernel_sizes))
+        # print(len(configuration_manager.conv_kernel_sizes))
+        # model = Generic_UNet3P(num_input_channels, configuration_manager.UNet_base_num_features, label_manager.num_segmentation_heads,
+        #                             7, 2, 2, conv_op, norm_op, norm_op_kwargs, dropout_op,
+        #                             dropout_op_kwargs,
+        #                             net_nonlin, net_nonlin_kwargs, True, False, lambda x: x, InitWeights_He(1e-2),
+        #                             None, None, False, True, False )
+        model = UNet_3Plus(num_input_channels, label_manager.num_segmentation_heads)
+        # model = unet3p(pretrained=False, progress=False,in_channels=num_input_channels,num_classes=label_manager.num_segmentation_heads)
+    elif(model == 'unetr'): 
+        # only support 3D image
+        print(configuration_manager.patch_size)
+        model = UNETR(in_channels=num_input_channels,
+                    out_channels=label_manager.num_segmentation_heads,
+                    img_size=configuration_manager.patch_size)   
+    elif(model == 'attentionunet'):
+        # only support 2D image
+        model = AttentionUnet(2, num_input_channels, label_manager.num_segmentation_heads, channels=(64, 128, 256, 512), strides=(2, 2, 2, 2))
                             
     elif(model == 'deeplabv3p'):
         model = smp.DeepLabV3Plus(encoder_name='resnet34', encoder_depth=5, encoder_weights=None, encoder_output_stride=16, 
@@ -74,9 +75,5 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         model = hrnet48(pretrained=False,progress=True,
                         in_channels=num_input_channels,
                         num_classes=label_manager.num_segmentation_heads)
-
-    elif(model == 'ccnet'):
-        model = Seg_Model(num_classes=label_manager.num_segmentation_heads,
-                          in_channels=num_input_channels,criterion=None, pretrained_model=None, recurrence=0,)
     
     return model
