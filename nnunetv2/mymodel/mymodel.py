@@ -64,7 +64,7 @@ def get_my_network_from_plans(plans_manager: PlansManager,
                     img_size=configuration_manager.patch_size)   
     elif(model == 'attentionunet'):
         # only support 2D image
-        model = AttentionUnet(2, num_input_channels, label_manager.num_segmentation_heads, channels=(64, 128, 256, 512), strides=(2, 2, 2, 2))
+        model = AttentionUnet(2, num_input_channels, label_manager.num_segmentation_heads, channels=(64, 128, 256, 512), strides=(2, 2, 2))
                             
     elif(model == 'deeplabv3p'):
         model = smp.DeepLabV3Plus(encoder_name='resnet34', encoder_depth=5, encoder_weights=None, encoder_output_stride=16, 
