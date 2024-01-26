@@ -17,7 +17,7 @@ class nnUNetTrainer_unetr(nnUNetTrainer):
     def initialize(self):
         if not self.was_initialized:
             ### Some hyperparameters for you to fiddle with
-            self.initial_lr = 1e-3
+            self.initial_lr = 1e-2
             # 权重衰减用于控制正则化项的强度，权重衰减可以帮助防止模型过拟合
             self.weight_decay = 3e-5
             # 用于控制正样本（foreground）的过采样比例
