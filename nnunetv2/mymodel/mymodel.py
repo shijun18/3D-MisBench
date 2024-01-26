@@ -15,6 +15,10 @@ from nnunetv2.mymodel.attentionunet import AttentionUnet
 from nnunetv2.mymodel.hrnet.hrnet import hrnet48
 from nnunetv2.mymodel.ccnet.ccnet import Seg_Model
 from nnunetv2.mymodel.mask2former.mask2former import Mask2Former
+from nnunetv2.mymodel.TransUNet.vit_seg_modeling import VisionTransformer as ViT_seg
+from nnunetv2.mymodel.TransUNet.vit_seg_modeling import CONFIGS as CONFIGS_ViT_seg
+from monai.networks.nets import UNet
+from nnunetv2.mymodel.DsTransUNet.DS_TransUNet import UNet as DsTransUnet
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -36,8 +40,13 @@ def get_my_network_from_plans(plans_manager: PlansManager,
     
     elif(model == '3dunet'):
 
-        model = UNet3D(in_channels=num_input_channels,
-                        out_channels=label_manager.num_segmentation_heads)
+        # model = UNet3D(in_channels=num_input_channels,
+        #                 out_channels=label_manager.num_segmentation_heads)
+        model = UNet(
+            spatial_dims=3,  # 3D Unet
+
+
+        )
         
     elif(model == 'unet3p'):
         # print("model = unet3p")
@@ -59,7 +68,8 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         # model = unet3p(pretrained=False, progress=False,in_channels=num_input_channels,num_classes=label_manager.num_segmentation_heads)
     elif(model == 'unetr'): 
         # only support 3D image
-        print(configuration_manager.patch_size)
+
+        ### 在大数据集上学习率为0.01更好
         model = UNETR(in_channels=num_input_channels,
                     out_channels=label_manager.num_segmentation_heads,
                     img_size=configuration_manager.patch_size)   
@@ -78,11 +88,25 @@ def get_my_network_from_plans(plans_manager: PlansManager,
                         in_channels=num_input_channels,
                         num_classes=label_manager.num_segmentation_heads)
     elif(model == 'ccnet'):
+        print("22222222")
         model = Seg_Model(num_classes=label_manager.num_segmentation_heads,
                           in_channels=num_input_channels,criterion=None, pretrained_model=None, recurrence=0,)
+    elif(model == 'transunet'):
+    # 需要手动在nnunetv2\mymodel\TransUNet\vit_seg_modeling_resnet_skip.py的128行修改维度，即修改('conv', StdConv2d(4, width, kernel_size=7, stride=2, bias=False, padding=3))
+    # 中的第一个数字，改为num_class的大小
+        
+        config_vit = CONFIGS_ViT_seg['R50-ViT-B_16']
+        config_vit.patches.grid = (int(configuration_manager.patch_size[0] / 16), int(configuration_manager.patch_size[0] / 16))
+        config_vit.n_classes = label_manager.num_segmentation_heads
+        model = ViT_seg(config_vit, img_size=configuration_manager.patch_size[0], num_classes=label_manager.num_segmentation_heads)
+    elif(model == 'dstransunet'):
     
-    elif(model == 'mask2former'):
-        model = Mask2Former(num_classes=label_manager.num_segmentation_heads,
-                          in_channels=num_input_channels,)
-    
+    # 至少需要40G显存
+        print(label_manager.num_segmentation_heads)
+        print(num_input_channels)
+        model = DsTransUnet(128, label_manager.num_segmentation_heads, in_ch=num_input_channels)
+
+
     return model
+
+### important:需要 pip install einops==0.3.0 版本必须正确，否则attentionUnet和unetr运行不了
