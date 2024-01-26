@@ -14,6 +14,7 @@ from nnunetv2.mymodel.unetr import UNETR
 from nnunetv2.mymodel.attentionunet import AttentionUnet
 from nnunetv2.mymodel.hrnet.hrnet import hrnet48
 from nnunetv2.mymodel.ccnet.ccnet import Seg_Model
+from nnunetv2.mymodel.mask2former.mask2former import Mask2Former
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -79,5 +80,9 @@ def get_my_network_from_plans(plans_manager: PlansManager,
     elif(model == 'ccnet'):
         model = Seg_Model(num_classes=label_manager.num_segmentation_heads,
                           in_channels=num_input_channels,criterion=None, pretrained_model=None, recurrence=0,)
+    
+    elif(model == 'mask2former'):
+        model = Mask2Former(num_classes=label_manager.num_segmentation_heads,
+                          in_channels=num_input_channels,)
     
     return model
