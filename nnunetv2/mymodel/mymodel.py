@@ -6,7 +6,7 @@ from dynamic_network_architectures.initialization.weight_init import init_last_b
 from nnunetv2.utilities.network_initialization import InitWeights_He
 from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager, PlansManager
 from torch import nn
-from nnunetv2.mymodel.unet_3d import UNet3D
+from nnunetv2.mymodel.unet_3d1 import UNet3D
 from nnunetv2.mymodel.unet_3p import UNet_3Plus
 # from nnunetv2.mymodel.unet_3p1 import Generic_UNet3P
 # from holocron.models.segmentation import unet3p
@@ -17,8 +17,11 @@ from nnunetv2.mymodel.ccnet.ccnet import Seg_Model
 from nnunetv2.mymodel.mask2former.mask2former import Mask2Former
 from nnunetv2.mymodel.TransUNet.vit_seg_modeling import VisionTransformer as ViT_seg
 from nnunetv2.mymodel.TransUNet.vit_seg_modeling import CONFIGS as CONFIGS_ViT_seg
-from monai.networks.nets import UNet
+from nnunetv2.mymodel.unet_3d2 import UNet
 from nnunetv2.mymodel.DsTransUNet.DS_TransUNet import UNet as DsTransUnet
+from monai.networks.layers.factories import Act, Norm
+from nnunetv2.mymodel.unet_3d import ResidualUnit
+from nnunetv2.mymodel.unet_3d2 import DoubleConv3D, Down3D, Up3D, Tail3D
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -40,13 +43,33 @@ def get_my_network_from_plans(plans_manager: PlansManager,
     
     elif(model == '3dunet'):
 
-        # model = UNet3D(in_channels=num_input_channels,
-        #                 out_channels=label_manager.num_segmentation_heads)
-        model = UNet(
-            spatial_dims=3,  # 3D Unet
-
-
-        )
+        model = UNet(stem=DoubleConv3D,
+                    down=Down3D,
+                    up=Up3D,
+                    tail=Tail3D,
+                    width=[64,128,256,512],
+                    conv_builder=DoubleConv3D,
+                    n_channels=num_input_channels,
+                    n_classes=label_manager.num_segmentation_heads)
+        # convs = ResidualUnit(
+        #     spatial_dims=3,
+        #     in_channels=1,
+        #     out_channels=64,
+            
+        # )
+        # print(convs)
+        
+        # model = UNet(
+        #     spatial_dims=3,  # 3D Unet
+        #     in_channels=num_input_channels,
+        #     out_channels= label_manager.num_segmentation_heads,
+        #     channels=(64,128,256,512),
+        #     strides=(2, 2, 2),
+        #     num_res_units=2,
+        #     act= Act.RELU,
+        #     norm=Norm.BATCH
+        # )
+        print(model)
         
     elif(model == 'unet3p'):
         # print("model = unet3p")
@@ -93,8 +116,8 @@ def get_my_network_from_plans(plans_manager: PlansManager,
                           in_channels=num_input_channels,criterion=None, pretrained_model=None, recurrence=0,)
     elif(model == 'transunet'):
     # 需要手动在nnunetv2\mymodel\TransUNet\vit_seg_modeling_resnet_skip.py的128行修改维度，即修改('conv', StdConv2d(4, width, kernel_size=7, stride=2, bias=False, padding=3))
-    # 中的第一个数字，改为num_class的大小
-        
+    # 中的第一个数字，改为num_input_channels的大小
+        print(num_input_channels)
         config_vit = CONFIGS_ViT_seg['R50-ViT-B_16']
         config_vit.patches.grid = (int(configuration_manager.patch_size[0] / 16), int(configuration_manager.patch_size[0] / 16))
         config_vit.n_classes = label_manager.num_segmentation_heads

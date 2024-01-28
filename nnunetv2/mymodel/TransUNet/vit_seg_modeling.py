@@ -382,8 +382,10 @@ class VisionTransformer(nn.Module):
         self.config = config
 
     def forward(self, x):
-        if x.size()[1] == 1:
-            x = x.repeat(1,3,1,1)
+        ### modified here
+        # if x.size()[1] == 1:
+        #     x = x.repeat(1,3,1,1) # why do this?
+        # print(x.shape,"333333333")
         x, attn_weights, features = self.transformer(x)  # (B, n_patch, hidden)
         x = self.decoder(x, features)
         logits = self.segmentation_head(x)
