@@ -19,13 +19,13 @@ class StdConv2d(nn.Conv2d):
 
     def forward(self, x):
         w = self.weight
-        # print(w.shape)
+        # print(w.shape,"w.shape")
         v, m = torch.var_mean(w, dim=[1, 2, 3], keepdim=True, unbiased=False)
         w = (w - m) / torch.sqrt(v + 1e-5)
-        # print(w.shape)
-        # print(v.shape)
-        # print(m.shape)
-        # print(x.shape)
+        # print(w.shape,"w.shape")
+        # print(v.shape, "v.shape")
+        # print(m.shape,"m.shape")
+        # print(x.shape,"x.shape")
         return F.conv2d(x, w, self.bias, self.stride, self.padding,
                         self.dilation, self.groups)
 
@@ -125,7 +125,7 @@ class ResNetV2(nn.Module):
         ############################
         # need to modify here
         self.root = nn.Sequential(OrderedDict([
-            ('conv', StdConv2d(4, width, kernel_size=7, stride=2, bias=False, padding=3)),
+            ('conv', StdConv2d(1, width, kernel_size=7, stride=2, bias=False, padding=3)),
             ('gn', nn.GroupNorm(32, width, eps=1e-6)),
             ('relu', nn.ReLU(inplace=True)),
             # ('pool', nn.MaxPool2d(kernel_size=3, stride=2, padding=0))

@@ -1,1167 +1,474 @@
+# Copyright (c) MONAI Consortium
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#     http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+from __future__ import annotations
+
+import warnings
+from collections.abc import Sequence
+
+import torch
 import torch.nn as nn
 
+from monai.networks.blocks.convolutions import Convolution
+from monai.networks.layers.factories import Act, Norm
+from monai.networks.layers.simplelayers import SkipConnection
+from monai.utils import alias, export
 
 
-import importlib
-import logging
-import os
-import shutil
-import sys
-
-import h5py
 import numpy as np
-import torch
-from torch import optim
+from monai.networks.blocks import ADN
+from monai.networks.layers.convutils import same_padding, stride_minus_kernel_padding
+from monai.networks.layers.factories import Conv
 
-from functools import partial
+__all__ = ["UNet", "Unet"]
 
-import torch
-from torch import nn as nn
-from torch.nn import functional as F
-
-# from pytorch3dunet.unet3d.se import ChannelSELayer3D, ChannelSpatialSELayer3D, SpatialSELayer3D
-
-
-def create_conv(in_channels, out_channels, kernel_size, order, num_groups, padding,
-                dropout_prob, is3d):
+# 修改了残差卷积单元，使网络的结构和论文中一致
+class ResidualUnit(nn.Module):
     """
-    Create a list of modules with together constitute a single conv layer with non-linearity
-    and optional batchnorm/groupnorm.
+    Residual module with multiple convolutions and a residual connection.
+
+    For example:
+
+    .. code-block:: python
+
+        from monai.networks.blocks import ResidualUnit
+
+        convs = ResidualUnit(
+            spatial_dims=3,
+            in_channels=1,
+            out_channels=1,
+            adn_ordering="AN",
+            act=("prelu", {"init": 0.2}),
+            norm=("layer", {"normalized_shape": (10, 10, 10)}),
+        )
+        print(convs)
+
+    output::
+
+        ResidualUnit(
+          (conv): Sequential(
+            (unit0): Convolution(
+              (conv): Conv3d(1, 1, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+              (adn): ADN(
+                (A): PReLU(num_parameters=1)
+                (N): LayerNorm((10, 10, 10), eps=1e-05, elementwise_affine=True)
+              )
+            )
+            (unit1): Convolution(
+              (conv): Conv3d(1, 1, kernel_size=(3, 3, 3), stride=(1, 1, 1), padding=(1, 1, 1))
+              (adn): ADN(
+                (A): PReLU(num_parameters=1)
+                (N): LayerNorm((10, 10, 10), eps=1e-05, elementwise_affine=True)
+              )
+            )
+          )
+          (residual): Identity()
+        )
 
     Args:
-        in_channels (int): number of input channels
-        out_channels (int): number of output channels
-        kernel_size(int or tuple): size of the convolving kernel
-        order (string): order of things, e.g.
-            'cr' -> conv + ReLU
-            'gcr' -> groupnorm + conv + ReLU
-            'cl' -> conv + LeakyReLU
-            'ce' -> conv + ELU
-            'bcr' -> batchnorm + conv + ReLU
-            'cbrd' -> conv + batchnorm + ReLU + dropout
-            'cbrD' -> conv + batchnorm + ReLU + dropout2d
-        num_groups (int): number of groups for the GroupNorm
-        padding (int or tuple): add zero-padding added to all three sides of the input
-        dropout_prob (float): dropout probability
-        is3d (bool): is3d (bool): if True use Conv3d, otherwise use Conv2d
-    Return:
-        list of tuple (name, module)
+        spatial_dims: number of spatial dimensions.
+        in_channels: number of input channels.
+        out_channels: number of output channels.
+        strides: convolution stride. Defaults to 1.
+        kernel_size: convolution kernel size. Defaults to 3.
+        subunits: number of convolutions. Defaults to 2.
+        adn_ordering: a string representing the ordering of activation, normalization, and dropout.
+            Defaults to "NDA".
+        act: activation type and arguments. Defaults to PReLU.
+        norm: feature normalization type and arguments. Defaults to instance norm.
+        dropout: dropout ratio. Defaults to no dropout.
+        dropout_dim: determine the dimensions of dropout. Defaults to 1.
+
+            - When dropout_dim = 1, randomly zeroes some of the elements for each channel.
+            - When dropout_dim = 2, Randomly zero out entire channels (a channel is a 2D feature map).
+            - When dropout_dim = 3, Randomly zero out entire channels (a channel is a 3D feature map).
+
+            The value of dropout_dim should be no larger than the value of `dimensions`.
+        dilation: dilation rate. Defaults to 1.
+        bias: whether to have a bias term. Defaults to True.
+        last_conv_only: for the last subunit, whether to use the convolutional layer only.
+            Defaults to False.
+        padding: controls the amount of implicit zero-paddings on both sides for padding number of points
+            for each dimension. Defaults to None.
+
+    See also:
+
+        :py:class:`monai.networks.blocks.Convolution`
+
     """
-    assert 'c' in order, "Conv layer MUST be present"
-    assert order[0] not in 'rle', 'Non-linearity cannot be the first operation in the layer'
 
-    modules = []
-    for i, char in enumerate(order):
-        if char == 'r':
-            modules.append(('ReLU', nn.ReLU(inplace=True)))
-        elif char == 'l':
-            modules.append(('LeakyReLU', nn.LeakyReLU(inplace=True)))
-        elif char == 'e':
-            modules.append(('ELU', nn.ELU(inplace=True)))
-        elif char == 'c':
-            # add learnable bias only in the absence of batchnorm/groupnorm
-            bias = not ('g' in order or 'b' in order)
-            if is3d:
-                conv = nn.Conv3d(in_channels, out_channels, kernel_size, padding=padding, bias=bias)
-            else:
-                conv = nn.Conv2d(in_channels, out_channels, kernel_size, padding=padding, bias=bias)
+    def __init__(
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        strides: Sequence[int] | int = 1,
+        kernel_size: Sequence[int] | int = 3,
+        subunits: int = 2,
+        adn_ordering: str = "NDA",
+        act: tuple | str | None = "PRELU",
+        norm: tuple | str | None = "INSTANCE",
+        dropout: tuple | str | float | None = None,
+        dropout_dim: int | None = 1,
+        dilation: Sequence[int] | int = 1,
+        bias: bool = True,
+        last_conv_only: bool = False,
+        padding: Sequence[int] | int | None = None,
+    ) -> None:
+        super().__init__()
+        self.spatial_dims = spatial_dims
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.conv = nn.Sequential()
+        self.residual = nn.Identity()
+        if not padding:
+            padding = same_padding(kernel_size, dilation)
+        schannels = in_channels
+        sstrides = strides
+        subunits = max(1, subunits)
 
-            modules.append(('conv', conv))
-        elif char == 'g':
-            is_before_conv = i < order.index('c')
-            if is_before_conv:
-                num_channels = in_channels
-            else:
-                num_channels = out_channels
+        for su in range(subunits):
+            conv_only = last_conv_only and su == (subunits - 1)
+            if subunits ==2: new_out_channels=out_channels//(2-su)
+            else: new_out_channels=out_channels
+            unit = Convolution(
+                self.spatial_dims,
+                schannels,
+                new_out_channels,
+                strides=sstrides,
+                kernel_size=kernel_size,
+                adn_ordering=adn_ordering,
+                act=act,
+                norm=norm,
+                dropout=dropout,
+                dropout_dim=dropout_dim,
+                dilation=dilation,
+                bias=bias,
+                conv_only=conv_only,
+                padding=padding,
+            )
 
-            # use only one group if the given number of groups is greater than the number of channels
-            if num_channels < num_groups:
-                num_groups = 1
+            self.conv.add_module(f"unit{su:d}", unit)
 
-            assert num_channels % num_groups == 0, f'Expected number of channels in input to be divisible by num_groups. num_channels={num_channels}, num_groups={num_groups}'
-            modules.append(('groupnorm', nn.GroupNorm(num_groups=num_groups, num_channels=num_channels)))
-        elif char == 'b':
-            is_before_conv = i < order.index('c')
-            if is3d:
-                bn = nn.BatchNorm3d
-            else:
-                bn = nn.BatchNorm2d
+            # after first loop set channels and strides to what they should be for subsequent units
+            schannels = new_out_channels
+            sstrides = 1
 
-            if is_before_conv:
-                modules.append(('batchnorm', bn(in_channels)))
-            else:
-                modules.append(('batchnorm', bn(out_channels)))
-        elif char == 'd':
-            modules.append(('dropout', nn.Dropout(p=dropout_prob)))
-        elif char == 'D':
-            modules.append(('dropout2d', nn.Dropout2d(p=dropout_prob)))
-        else:
-            raise ValueError(f"Unsupported layer type '{char}'. MUST be one of ['b', 'g', 'r', 'l', 'e', 'c', 'd', 'D']")
+        # apply convolution to input to change number of output channels and size to match that coming from self.conv
+        if np.prod(strides) != 1 or in_channels != out_channels:
+            rkernel_size = kernel_size
+            rpadding = padding
 
-    return modules
+            if np.prod(strides) == 1:  # if only adapting number of channels a 1x1 kernel is used with no padding
+                rkernel_size = 1
+                rpadding = 0
+
+            conv_type = Conv[Conv.CONV, self.spatial_dims]
+            self.residual = conv_type(in_channels, out_channels, rkernel_size, strides, rpadding, bias=bias)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        res: torch.Tensor = self.residual(x)  # create the additive residual from x
+        cx: torch.Tensor = self.conv(x)  # apply x to sequence of operations
+        return cx + res  # add the residual to the output
 
 
-class SingleConv(nn.Sequential):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@export("monai.networks.nets")
+@alias("Unet")
+class UNet(nn.Module):
     """
-    Basic convolutional module consisting of a Conv3d, non-linearity and optional batchnorm/groupnorm. The order
-    of operations can be specified via the `order` parameter
+    Enhanced version of UNet which has residual units implemented with the ResidualUnit class.
+    The residual part uses a convolution to change the input dimensions to match the output dimensions
+    if this is necessary but will use nn.Identity if not.
+    Refer to: https://link.springer.com/chapter/10.1007/978-3-030-12029-0_40.
+
+    Each layer of the network has a encode and decode path with a skip connection between them. Data in the encode path
+    is downsampled using strided convolutions (if `strides` is given values greater than 1) and in the decode path
+    upsampled using strided transpose convolutions. These down or up sampling operations occur at the beginning of each
+    block rather than afterwards as is typical in UNet implementations.
+
+    To further explain this consider the first example network given below. This network has 3 layers with strides
+    of 2 for each of the middle layers (the last layer is the bottom connection which does not down/up sample). Input
+    data to this network is immediately reduced in the spatial dimensions by a factor of 2 by the first convolution of
+    the residual unit defining the first layer of the encode part. The last layer of the decode part will upsample its
+    input (data from the previous layer concatenated with data from the skip connection) in the first convolution. this
+    ensures the final output of the network has the same shape as the input.
+
+    Padding values for the convolutions are chosen to ensure output sizes are even divisors/multiples of the input
+    sizes if the `strides` value for a layer is a factor of the input sizes. A typical case is to use `strides` values
+    of 2 and inputs that are multiples of powers of 2. An input can thus be downsampled evenly however many times its
+    dimensions can be divided by 2, so for the example network inputs would have to have dimensions that are multiples
+    of 4. In the second example network given below the input to the bottom layer will have shape (1, 64, 15, 15) for
+    an input of shape (1, 1, 240, 240) demonstrating the input being reduced in size spatially by 2**4.
 
     Args:
-        in_channels (int): number of input channels
-        out_channels (int): number of output channels
-        kernel_size (int or tuple): size of the convolving kernel
-        order (string): determines the order of layers, e.g.
-            'cr' -> conv + ReLU
-            'crg' -> conv + ReLU + groupnorm
-            'cl' -> conv + LeakyReLU
-            'ce' -> conv + ELU
-        num_groups (int): number of groups for the GroupNorm
-        padding (int or tuple): add zero-padding
-        dropout_prob (float): dropout probability, default 0.1
-        is3d (bool): if True use Conv3d, otherwise use Conv2d
+        spatial_dims: number of spatial dimensions.
+        in_channels: number of input channels.
+        out_channels: number of output channels.
+        channels: sequence of channels. Top block first. The length of `channels` should be no less than 2.
+        strides: sequence of convolution strides. The length of `stride` should equal to `len(channels) - 1`.
+        kernel_size: convolution kernel size, the value(s) should be odd. If sequence,
+            its length should equal to dimensions. Defaults to 3.
+        up_kernel_size: upsampling convolution kernel size, the value(s) should be odd. If sequence,
+            its length should equal to dimensions. Defaults to 3.
+        num_res_units: number of residual units. Defaults to 0.
+        act: activation type and arguments. Defaults to PReLU.
+        norm: feature normalization type and arguments. Defaults to instance norm.
+        dropout: dropout ratio. Defaults to no dropout.
+        bias: whether to have a bias term in convolution blocks. Defaults to True.
+            According to `Performance Tuning Guide <https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html>`_,
+            if a conv layer is directly followed by a batch norm layer, bias should be False.
+        adn_ordering: a string representing the ordering of activation (A), normalization (N), and dropout (D).
+            Defaults to "NDA". See also: :py:class:`monai.networks.blocks.ADN`.
+
+    Examples::
+
+        from monai.networks.nets import UNet
+
+        # 3 layer network with down/upsampling by a factor of 2 at each layer with 2-convolution residual units
+        net = UNet(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=1,
+            channels=(4, 8, 16),
+            strides=(2, 2),
+            num_res_units=2
+        )
+
+        # 5 layer network with simple convolution/normalization/dropout/activation blocks defining the layers
+        net=UNet(
+            spatial_dims=2,
+            in_channels=1,
+            out_channels=1,
+            channels=(4, 8, 16, 32, 64),
+            strides=(2, 2, 2, 2),
+        )
+
+    Note: The acceptable spatial size of input data depends on the parameters of the network,
+        to set appropriate spatial size, please check the tutorial for more details:
+        https://github.com/Project-MONAI/tutorials/blob/master/modules/UNet_input_size_constrains.ipynb.
+        Typically, when using a stride of 2 in down / up sampling, the output dimensions are either half of the
+        input when downsampling, or twice when upsampling. In this case with N numbers of layers in the network,
+        the inputs must have spatial dimensions that are all multiples of 2^N.
+        Usually, applying `resize`, `pad` or `crop` transforms can help adjust the spatial size of input data.
+
     """
 
-    def __init__(self, in_channels, out_channels, kernel_size=3, order='gcr', num_groups=8,
-                 padding=1, dropout_prob=0.1, is3d=True):
-        super(SingleConv, self).__init__()
+    def __init__(
+        self,
+        spatial_dims: int,
+        in_channels: int,
+        out_channels: int,
+        channels: Sequence[int],
+        strides: Sequence[int],
+        kernel_size: Sequence[int] | int = 3,
+        up_kernel_size: Sequence[int] | int = 3,
+        num_res_units: int = 0,
+        act: tuple | str = Act.PRELU,
+        norm: tuple | str = Norm.INSTANCE,
+        dropout: float = 0.0,
+        bias: bool = True,
+        adn_ordering: str = "NDA",
+    ) -> None:
+        super().__init__()
 
-        for name, module in create_conv(in_channels, out_channels, kernel_size, order,
-                                        num_groups, padding, dropout_prob, is3d):
-            self.add_module(name, module)
+        if len(channels) < 2:
+            raise ValueError("the length of `channels` should be no less than 2.")
+        delta = len(strides) - (len(channels) - 1)
+        if delta < 0:
+            raise ValueError("the length of `strides` should equal to `len(channels) - 1`.")
+        if delta > 0:
+            warnings.warn(f"`len(strides) > len(channels) - 1`, the last {delta} values of strides will not be used.")
+        if isinstance(kernel_size, Sequence) and len(kernel_size) != spatial_dims:
+            raise ValueError("the length of `kernel_size` should equal to `dimensions`.")
+        if isinstance(up_kernel_size, Sequence) and len(up_kernel_size) != spatial_dims:
+            raise ValueError("the length of `up_kernel_size` should equal to `dimensions`.")
 
+        self.dimensions = spatial_dims
+        self.in_channels = in_channels
+        self.out_channels = out_channels
+        self.channels = channels
+        self.strides = strides
+        self.kernel_size = kernel_size
+        self.up_kernel_size = up_kernel_size
+        self.num_res_units = num_res_units
+        self.act = act
+        self.norm = norm
+        self.dropout = dropout
+        self.bias = bias
+        self.adn_ordering = adn_ordering
 
-class DoubleConv(nn.Sequential):
-    """
-    A module consisting of two consecutive convolution layers (e.g. BatchNorm3d+ReLU+Conv3d).
-    We use (Conv3d+ReLU+GroupNorm3d) by default.
-    This can be changed however by providing the 'order' argument, e.g. in order
-    to change to Conv3d+BatchNorm3d+ELU use order='cbe'.
-    Use padded convolutions to make sure that the output (H_out, W_out) is the same
-    as (H_in, W_in), so that you don't have to crop in the decoder path.
+        def _create_block(
+            inc: int, outc: int, channels: Sequence[int], strides: Sequence[int], is_top: bool
+        ) -> nn.Module:
+            """
+            Builds the UNet structure from the bottom up by recursing down to the bottom block, then creating sequential
+            blocks containing the downsample path, a skip connection around the previous block, and the upsample path.
 
-    Args:
-        in_channels (int): number of input channels
-        out_channels (int): number of output channels
-        encoder (bool): if True we're in the encoder path, otherwise we're in the decoder
-        kernel_size (int or tuple): size of the convolving kernel
-        order (string): determines the order of layers, e.g.
-            'cr' -> conv + ReLU
-            'crg' -> conv + ReLU + groupnorm
-            'cl' -> conv + LeakyReLU
-            'ce' -> conv + ELU
-        num_groups (int): number of groups for the GroupNorm
-        padding (int or tuple): add zero-padding added to all three sides of the input
-        upscale (int): number of the convolution to upscale in encoder if DoubleConv, default: 2
-        dropout_prob (float or tuple): dropout probability for each convolution, default 0.1
-        is3d (bool): if True use Conv3d instead of Conv2d layers
-    """
+            Args:
+                inc: number of input channels.
+                outc: number of output channels.
+                channels: sequence of channels. Top block first.
+                strides: convolution stride.
+                is_top: True if this is the top block.
+            """
+            c = channels[0]
+            s = strides[0]
 
-    def __init__(self, in_channels, out_channels, encoder, kernel_size=3, order='gcr',
-                 num_groups=8, padding=1, upscale=2, dropout_prob=0.1, is3d=True):
-        super(DoubleConv, self).__init__()
-        if encoder:
-            # we're in the encoder path
-            conv1_in_channels = in_channels
-            if upscale == 1:
-                conv1_out_channels = out_channels
+            subblock: nn.Module
+
+            if len(channels) > 2:
+                subblock = _create_block(c, c, channels[1:], strides[1:], False)  # continue recursion down
+                upc = c * 2
             else:
-                conv1_out_channels = out_channels // 2
-            if conv1_out_channels < in_channels:
-                conv1_out_channels = in_channels
-            conv2_in_channels, conv2_out_channels = conv1_out_channels, out_channels
-        else:
-            # we're in the decoder path, decrease the number of channels in the 1st convolution
-            conv1_in_channels, conv1_out_channels = in_channels, out_channels
-            conv2_in_channels, conv2_out_channels = out_channels, out_channels
+                # the next layer is the bottom so stop recursion, create the bottom layer as the sublock for this layer
+                subblock = self._get_bottom_layer(c, channels[1])
+                upc = c + channels[1]
 
-        # check if dropout_prob is a tuple and if so
-        # split it for different dropout probabilities for each convolution.
-        if isinstance(dropout_prob, list) or isinstance(dropout_prob, tuple):
-            dropout_prob1 = dropout_prob[0]
-            dropout_prob2 = dropout_prob[1]
-        else:
-            dropout_prob1 = dropout_prob2 = dropout_prob
+            down = self._get_down_layer(inc, c, s, is_top)  # create layer in downsampling path
+            up = self._get_up_layer(upc, outc, s, is_top)  # create layer in upsampling path
 
-        # conv1
-        self.add_module('SingleConv1',
-                        SingleConv(conv1_in_channels, conv1_out_channels, kernel_size, order, num_groups,
-                                   padding=padding, dropout_prob=dropout_prob1, is3d=is3d))
-        # conv2
-        self.add_module('SingleConv2',
-                        SingleConv(conv2_in_channels, conv2_out_channels, kernel_size, order, num_groups,
-                                   padding=padding, dropout_prob=dropout_prob2, is3d=is3d))
+            return self._get_connection_block(down, up, subblock)
 
+        self.model = _create_block(in_channels, out_channels, self.channels, self.strides, True)
 
-class ResNetBlock(nn.Module):
-    """
-    Residual block that can be used instead of standard DoubleConv in the Encoder module.
-    Motivated by: https://arxiv.org/pdf/1706.00120.pdf
-
-    Notice we use ELU instead of ReLU (order='cge') and put non-linearity after the groupnorm.
-    """
-
-    def __init__(self, in_channels, out_channels, kernel_size=3, order='cge', num_groups=8, is3d=True, **kwargs):
-        super(ResNetBlock, self).__init__()
-
-        if in_channels != out_channels:
-            # conv1x1 for increasing the number of channels
-            if is3d:
-                self.conv1 = nn.Conv3d(in_channels, out_channels, 1)
-            else:
-                self.conv1 = nn.Conv2d(in_channels, out_channels, 1)
-        else:
-            self.conv1 = nn.Identity()
-
-        # residual block
-        self.conv2 = SingleConv(out_channels, out_channels, kernel_size=kernel_size, order=order, num_groups=num_groups,
-                                is3d=is3d)
-        # remove non-linearity from the 3rd convolution since it's going to be applied after adding the residual
-        n_order = order
-        for c in 'rel':
-            n_order = n_order.replace(c, '')
-        self.conv3 = SingleConv(out_channels, out_channels, kernel_size=kernel_size, order=n_order,
-                                num_groups=num_groups, is3d=is3d)
-
-        # create non-linearity separately
-        if 'l' in order:
-            self.non_linearity = nn.LeakyReLU(negative_slope=0.1, inplace=True)
-        elif 'e' in order:
-            self.non_linearity = nn.ELU(inplace=True)
-        else:
-            self.non_linearity = nn.ReLU(inplace=True)
-
-    def forward(self, x):
-        # apply first convolution to bring the number of channels to out_channels
-        residual = self.conv1(x)
-
-        # residual block
-        out = self.conv2(residual)
-        out = self.conv3(out)
-
-        out += residual
-        out = self.non_linearity(out)
-
-        return out
-
-
-# class ResNetBlockSE(ResNetBlock):
-#     def __init__(self, in_channels, out_channels, kernel_size=3, order='cge', num_groups=8, se_module='scse', **kwargs):
-#         super(ResNetBlockSE, self).__init__(
-#             in_channels, out_channels, kernel_size=kernel_size, order=order,
-#             num_groups=num_groups, **kwargs)
-#         assert se_module in ['scse', 'cse', 'sse']
-#         if se_module == 'scse':
-#             self.se_module = ChannelSpatialSELayer3D(num_channels=out_channels, reduction_ratio=1)
-#         elif se_module == 'cse':
-#             self.se_module = ChannelSELayer3D(num_channels=out_channels, reduction_ratio=1)
-#         elif se_module == 'sse':
-#             self.se_module = SpatialSELayer3D(num_channels=out_channels)
-
-#     def forward(self, x):
-#         out = super().forward(x)
-#         out = self.se_module(out)
-#         return out
-
-
-class Encoder(nn.Module):
-    """
-    A single module from the encoder path consisting of the optional max
-    pooling layer (one may specify the MaxPool kernel_size to be different
-    from the standard (2,2,2), e.g. if the volumetric data is anisotropic
-    (make sure to use complementary scale_factor in the decoder path) followed by
-    a basic module (DoubleConv or ResNetBlock).
-
-    Args:
-        in_channels (int): number of input channels
-        out_channels (int): number of output channels
-        conv_kernel_size (int or tuple): size of the convolving kernel
-        apply_pooling (bool): if True use MaxPool3d before DoubleConv
-        pool_kernel_size (int or tuple): the size of the window
-        pool_type (str): pooling layer: 'max' or 'avg'
-        basic_module(nn.Module): either ResNetBlock or DoubleConv
-        conv_layer_order (string): determines the order of layers
-            in `DoubleConv` module. See `DoubleConv` for more info.
-        num_groups (int): number of groups for the GroupNorm
-        padding (int or tuple): add zero-padding added to all three sides of the input
-        upscale (int): number of the convolution to upscale in encoder if DoubleConv, default: 2
-        dropout_prob (float or tuple): dropout probability, default 0.1
-        is3d (bool): use 3d or 2d convolutions/pooling operation
-    """
-
-    def __init__(self, in_channels, out_channels, conv_kernel_size=3, apply_pooling=True,
-                 pool_kernel_size=2, pool_type='max', basic_module=DoubleConv, conv_layer_order='gcr',
-                 num_groups=8, padding=1, upscale=2, dropout_prob=0.1, is3d=True):
-        super(Encoder, self).__init__()
-        assert pool_type in ['max', 'avg']
-        if apply_pooling:
-            if pool_type == 'max':
-                if is3d:
-                    self.pooling = nn.MaxPool3d(kernel_size=pool_kernel_size)
-                else:
-                    self.pooling = nn.MaxPool2d(kernel_size=pool_kernel_size)
-            else:
-                if is3d:
-                    self.pooling = nn.AvgPool3d(kernel_size=pool_kernel_size)
-                else:
-                    self.pooling = nn.AvgPool2d(kernel_size=pool_kernel_size)
-        else:
-            self.pooling = None
-
-        self.basic_module = basic_module(in_channels, out_channels,
-                                         encoder=True,
-                                         kernel_size=conv_kernel_size,
-                                         order=conv_layer_order,
-                                         num_groups=num_groups,
-                                         padding=padding,
-                                         upscale=upscale,
-                                         dropout_prob=dropout_prob,
-                                         is3d=is3d)
-
-    def forward(self, x):
-        if self.pooling is not None:
-            x = self.pooling(x)
-        x = self.basic_module(x)
-        return x
-
-
-class Decoder(nn.Module):
-    """
-    A single module for decoder path consisting of the upsampling layer
-    (either learned ConvTranspose3d or nearest neighbor interpolation)
-    followed by a basic module (DoubleConv or ResNetBlock).
-
-    Args:
-        in_channels (int): number of input channels
-        out_channels (int): number of output channels
-        conv_kernel_size (int or tuple): size of the convolving kernel
-        scale_factor (int or tuple): used as the multiplier for the image H/W/D in
-            case of nn.Upsample or as stride in case of ConvTranspose3d, must reverse the MaxPool3d operation
-            from the corresponding encoder
-        basic_module(nn.Module): either ResNetBlock or DoubleConv
-        conv_layer_order (string): determines the order of layers
-            in `DoubleConv` module. See `DoubleConv` for more info.
-        num_groups (int): number of groups for the GroupNorm
-        padding (int or tuple): add zero-padding added to all three sides of the input
-        upsample (str): algorithm used for upsampling:
-            InterpolateUpsampling:   'nearest' | 'linear' | 'bilinear' | 'trilinear' | 'area'
-            TransposeConvUpsampling: 'deconv'
-            No upsampling:           None
-            Default: 'default' (chooses automatically)
-        dropout_prob (float or tuple): dropout probability, default 0.1
-    """
-
-    def __init__(self, in_channels, out_channels, conv_kernel_size=3, scale_factor=2, basic_module=DoubleConv,
-                 conv_layer_order='gcr', num_groups=8, padding=1, upsample='default',
-                 dropout_prob=0.1, is3d=True):
-        super(Decoder, self).__init__()
-
-        # perform concat joining per default
-        concat = True
-
-        # don't adapt channels after join operation
-        adapt_channels = False
-
-        if upsample is not None and upsample != 'none':
-            if upsample == 'default':
-                if basic_module == DoubleConv:
-                    upsample = 'nearest'  # use nearest neighbor interpolation for upsampling
-                    concat = True  # use concat joining
-                    adapt_channels = False  # don't adapt channels
-                elif basic_module == ResNetBlock:
-                    upsample = 'deconv'  # use deconvolution upsampling
-                    concat = False  # use summation joining
-                    adapt_channels = True  # adapt channels after joining
-
-            # perform deconvolution upsampling if mode is deconv
-            if upsample == 'deconv':
-                self.upsampling = TransposeConvUpsampling(in_channels=in_channels, out_channels=out_channels,
-                                                          kernel_size=conv_kernel_size, scale_factor=scale_factor,
-                                                          is3d=is3d)
-            else:
-                self.upsampling = InterpolateUpsampling(mode=upsample)
-        else:
-            # no upsampling
-            self.upsampling = NoUpsampling()
-            # concat joining
-            self.joining = partial(self._joining, concat=True)
-
-        # perform joining operation
-        self.joining = partial(self._joining, concat=concat)
-
-        # adapt the number of in_channels for the ResNetBlock
-        if adapt_channels is True:
-            in_channels = out_channels
-
-        self.basic_module = basic_module(in_channels, out_channels,
-                                         encoder=False,
-                                         kernel_size=conv_kernel_size,
-                                         order=conv_layer_order,
-                                         num_groups=num_groups,
-                                         padding=padding,
-                                         dropout_prob=dropout_prob,
-                                         is3d=is3d)
-
-    def forward(self, encoder_features, x):
-        x = self.upsampling(encoder_features=encoder_features, x=x)
-        x = self.joining(encoder_features, x)
-        x = self.basic_module(x)
-        return x
-
-    @staticmethod
-    def _joining(encoder_features, x, concat):
-        if concat:
-            return torch.cat((encoder_features, x), dim=1)
-        else:
-            return encoder_features + x
-
-
-def create_encoders(in_channels, f_maps, basic_module, conv_kernel_size, conv_padding,
-                    conv_upscale, dropout_prob,
-                    layer_order, num_groups, pool_kernel_size, is3d):
-    # create encoder path consisting of Encoder modules. Depth of the encoder is equal to `len(f_maps)`
-    encoders = []
-    for i, out_feature_num in enumerate(f_maps):
-        if i == 0:
-            # apply conv_coord only in the first encoder if any
-            encoder = Encoder(in_channels, out_feature_num,
-                              apply_pooling=False,  # skip pooling in the firs encoder
-                              basic_module=basic_module,
-                              conv_layer_order=layer_order,
-                              conv_kernel_size=conv_kernel_size,
-                              num_groups=num_groups,
-                              padding=conv_padding,
-                              upscale=conv_upscale,
-                              dropout_prob=dropout_prob,
-                              is3d=is3d)
-        else:
-            encoder = Encoder(f_maps[i - 1], out_feature_num,
-                              basic_module=basic_module,
-                              conv_layer_order=layer_order,
-                              conv_kernel_size=conv_kernel_size,
-                              num_groups=num_groups,
-                              pool_kernel_size=pool_kernel_size,
-                              padding=conv_padding,
-                              upscale=conv_upscale,
-                              dropout_prob=dropout_prob,
-                              is3d=is3d)
-
-        encoders.append(encoder)
-
-    return nn.ModuleList(encoders)
-
-
-def create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding, layer_order,
-                    num_groups, upsample, dropout_prob, is3d):
-    # create decoder path consisting of the Decoder modules. The length of the decoder list is equal to `len(f_maps) - 1`
-    decoders = []
-    reversed_f_maps = list(reversed(f_maps))
-    for i in range(len(reversed_f_maps) - 1):
-        if basic_module == DoubleConv and upsample != 'deconv':
-            in_feature_num = reversed_f_maps[i] + reversed_f_maps[i + 1]
-        else:
-            in_feature_num = reversed_f_maps[i]
-
-        out_feature_num = reversed_f_maps[i + 1]
-
-        decoder = Decoder(in_feature_num, out_feature_num,
-                          basic_module=basic_module,
-                          conv_layer_order=layer_order,
-                          conv_kernel_size=conv_kernel_size,
-                          num_groups=num_groups,
-                          padding=conv_padding,
-                          upsample=upsample,
-                          dropout_prob=dropout_prob,
-                          is3d=is3d)
-        decoders.append(decoder)
-    return nn.ModuleList(decoders)
-
-
-class AbstractUpsampling(nn.Module):
-    """
-    Abstract class for upsampling. A given implementation should upsample a given 5D input tensor using either
-    interpolation or learned transposed convolution.
-    """
-
-    def __init__(self, upsample):
-        super(AbstractUpsampling, self).__init__()
-        self.upsample = upsample
-
-    def forward(self, encoder_features, x):
-        # get the spatial dimensions of the output given the encoder_features
-        output_size = encoder_features.size()[2:]
-        # upsample the input and return
-        return self.upsample(x, output_size)
-
-
-class InterpolateUpsampling(AbstractUpsampling):
-    """
-    Args:
-        mode (str): algorithm used for upsampling:
-            'nearest' | 'linear' | 'bilinear' | 'trilinear' | 'area'. Default: 'nearest'
-            used only if transposed_conv is False
-    """
-
-    def __init__(self, mode='nearest'):
-        upsample = partial(self._interpolate, mode=mode)
-        super().__init__(upsample)
-
-    @staticmethod
-    def _interpolate(x, size, mode):
-        return F.interpolate(x, size=size, mode=mode)
-
-
-class TransposeConvUpsampling(AbstractUpsampling):
-    """
-    Args:
-        in_channels (int): number of input channels for transposed conv
-            used only if transposed_conv is True
-        out_channels (int): number of output channels for transpose conv
-            used only if transposed_conv is True
-        kernel_size (int or tuple): size of the convolving kernel
-            used only if transposed_conv is True
-        scale_factor (int or tuple): stride of the convolution
-            used only if transposed_conv is True
-        is3d (bool): if True use ConvTranspose3d, otherwise use ConvTranspose2d
-    """
-
-    class Upsample(nn.Module):
+    def _get_connection_block(self, down_path: nn.Module, up_path: nn.Module, subblock: nn.Module) -> nn.Module:
         """
-        Workaround the 'ValueError: requested an output size...' in the `_output_padding` method in
-        transposed convolution. It performs transposed conv followed by the interpolation to the correct size if necessary.
-        """
-
-        def __init__(self, conv_transposed, is3d):
-            super().__init__()
-            self.conv_transposed = conv_transposed
-            self.is3d = is3d
-
-        def forward(self, x, size):
-            x = self.conv_transposed(x)
-            if self.is3d:
-                output_size = x.size()[-3:]
-            else:
-                output_size = x.size()[-2:]
-            if output_size != size:
-                return F.interpolate(x, size=size)
-            return x
-
-    def __init__(self, in_channels, out_channels, kernel_size=3, scale_factor=2, is3d=True):
-        # make sure that the output size reverses the MaxPool3d from the corresponding encoder
-        if is3d is True:
-            conv_transposed = nn.ConvTranspose3d(in_channels, out_channels, kernel_size=kernel_size,
-                                                 stride=scale_factor, padding=1, bias=False)
-        else:
-            conv_transposed = nn.ConvTranspose2d(in_channels, out_channels, kernel_size=kernel_size,
-                                                 stride=scale_factor, padding=1, bias=False)
-        upsample = self.Upsample(conv_transposed, is3d)
-        super().__init__(upsample)
-
-
-class NoUpsampling(AbstractUpsampling):
-    def __init__(self):
-        super().__init__(self._no_upsampling)
-
-    @staticmethod
-    def _no_upsampling(x, size):
-        return x
-
-
-def save_checkpoint(state, is_best, checkpoint_dir):
-    """Saves model and training parameters at '{checkpoint_dir}/last_checkpoint.pytorch'.
-    If is_best==True saves '{checkpoint_dir}/best_checkpoint.pytorch' as well.
-
-    Args:
-        state (dict): contains model's state_dict, optimizer's state_dict, epoch
-            and best evaluation metric value so far
-        is_best (bool): if True state contains the best model seen so far
-        checkpoint_dir (string): directory where the checkpoint are to be saved
-    """
-
-    if not os.path.exists(checkpoint_dir):
-        os.mkdir(checkpoint_dir)
-
-    last_file_path = os.path.join(checkpoint_dir, 'last_checkpoint.pytorch')
-    torch.save(state, last_file_path)
-    if is_best:
-        best_file_path = os.path.join(checkpoint_dir, 'best_checkpoint.pytorch')
-        shutil.copyfile(last_file_path, best_file_path)
-
-
-def load_checkpoint(checkpoint_path, model, optimizer=None,
-                    model_key='model_state_dict', optimizer_key='optimizer_state_dict'):
-    """Loads model and training parameters from a given checkpoint_path
-    If optimizer is provided, loads optimizer's state_dict of as well.
-
-    Args:
-        checkpoint_path (string): path to the checkpoint to be loaded
-        model (torch.nn.Module): model into which the parameters are to be copied
-        optimizer (torch.optim.Optimizer) optional: optimizer instance into
-            which the parameters are to be copied
-
-    Returns:
-        state
-    """
-    if not os.path.exists(checkpoint_path):
-        raise IOError(f"Checkpoint '{checkpoint_path}' does not exist")
-
-    state = torch.load(checkpoint_path, map_location='cpu')
-    model.load_state_dict(state[model_key])
-
-    if optimizer is not None:
-        optimizer.load_state_dict(state[optimizer_key])
-
-    return state
-
-
-def save_network_output(output_path, output, logger=None):
-    if logger is not None:
-        logger.info(f'Saving network output to: {output_path}...')
-    output = output.detach().cpu()[0]
-    with h5py.File(output_path, 'w') as f:
-        f.create_dataset('predictions', data=output, compression='gzip')
-
-
-loggers = {}
-
-
-def get_logger(name, level=logging.INFO):
-    global loggers
-    if loggers.get(name) is not None:
-        return loggers[name]
-    else:
-        logger = logging.getLogger(name)
-        logger.setLevel(level)
-        # Logging to console
-        stream_handler = logging.StreamHandler(sys.stdout)
-        formatter = logging.Formatter(
-            '%(asctime)s [%(threadName)s] %(levelname)s %(name)s - %(message)s')
-        stream_handler.setFormatter(formatter)
-        logger.addHandler(stream_handler)
-
-        loggers[name] = logger
-
-        return logger
-
-
-def get_number_of_learnable_parameters(model):
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-
-class RunningAverage:
-    """Computes and stores the average
-    """
-
-    def __init__(self):
-        self.count = 0
-        self.sum = 0
-        self.avg = 0
-
-    def update(self, value, n=1):
-        self.count += n
-        self.sum += value * n
-        self.avg = self.sum / self.count
-
-
-def number_of_features_per_level(init_channel_number, num_levels):
-    return [init_channel_number * 2 ** k for k in range(num_levels)]
-
-
-class _TensorboardFormatter:
-    """
-    Tensorboard formatters converts a given batch of images (be it input/output to the network or the target segmentation
-    image) to a series of images that can be displayed in tensorboard. This is the parent class for all tensorboard
-    formatters which ensures that returned images are in the 'CHW' format.
-    """
-
-    def __init__(self, **kwargs):
-        pass
-
-    def __call__(self, name, batch):
-        """
-        Transform a batch to a series of tuples of the form (tag, img), where `tag` corresponds to the image tag
-        and `img` is the image itself.
+        Returns the block object defining a layer of the UNet structure including the implementation of the skip
+        between encoding (down) and decoding (up) sides of the network.
 
         Args:
-             name (str): one of 'inputs'/'targets'/'predictions'
-             batch (torch.tensor): 4D or 5D torch tensor
+            down_path: encoding half of the layer
+            up_path: decoding half of the layer
+            subblock: block defining the next layer in the network.
+        Returns: block for this layer: `nn.Sequential(down_path, SkipConnection(subblock), up_path)`
         """
+        return nn.Sequential(down_path, SkipConnection(subblock), up_path)
 
-        def _check_img(tag_img):
-            tag, img = tag_img
+    def _get_down_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool) -> nn.Module:
+        """
+        Returns the encoding (down) part of a layer of the network. This typically will downsample data at some point
+        in its structure. Its output is used as input to the next layer down and is concatenated with output from the
+        next layer to form the input for the decode (up) part of the layer.
 
-            assert img.ndim == 2 or img.ndim == 3, 'Only 2D (HW) and 3D (CHW) images are accepted for display'
+        Args:
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            strides: convolution stride.
+            is_top: True if this is the top block.
+        """
+        mod: nn.Module
+        if self.num_res_units > 0:
+            mod = ResidualUnit(
+                self.dimensions,
+                in_channels,
+                out_channels,
+                strides=strides,
+                kernel_size=self.kernel_size,
+                subunits=self.num_res_units,
+                act=self.act,
+                norm=self.norm,
+                dropout=self.dropout,
+                bias=self.bias,
+                adn_ordering=self.adn_ordering,
+            )
+            return mod
+        mod = Convolution(
+            self.dimensions,
+            in_channels,
+            out_channels,
+            strides=strides,
+            kernel_size=self.kernel_size,
+            act=self.act,
+            norm=self.norm,
+            dropout=self.dropout,
+            bias=self.bias,
+            adn_ordering=self.adn_ordering,
+        )
+        return mod
 
-            if img.ndim == 2:
-                img = np.expand_dims(img, axis=0)
-            else:
-                C = img.shape[0]
-                assert C == 1 or C == 3, 'Only (1, H, W) or (3, H, W) images are supported'
+    def _get_bottom_layer(self, in_channels: int, out_channels: int) -> nn.Module:
+        """
+        Returns the bottom or bottleneck layer at the bottom of the network linking encode to decode halves.
 
-            return tag, img
+        Args:
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+        """
+        return self._get_down_layer(in_channels, out_channels, 1, False)
 
-        tagged_images = self.process_batch(name, batch)
+    def _get_up_layer(self, in_channels: int, out_channels: int, strides: int, is_top: bool) -> nn.Module:
+        """
+        Returns the decoding (up) part of a layer of the network. This typically will upsample data at some point
+        in its structure. Its output is used as input to the next layer up.
 
-        return list(map(_check_img, tagged_images))
+        Args:
+            in_channels: number of input channels.
+            out_channels: number of output channels.
+            strides: convolution stride.
+            is_top: True if this is the top block.
+        """
+        conv: Convolution | nn.Sequential
 
-    def process_batch(self, name, batch):
-        raise NotImplementedError
+        conv = Convolution(
+            self.dimensions,
+            in_channels,
+            out_channels,
+            strides=strides,
+            kernel_size=self.up_kernel_size,
+            act=self.act,
+            norm=self.norm,
+            dropout=self.dropout,
+            bias=self.bias,
+            conv_only=is_top and self.num_res_units == 0,
+            is_transposed=True,
+            adn_ordering=self.adn_ordering,
+        )
 
+        if self.num_res_units > 0:
+            ru = ResidualUnit(
+                self.dimensions,
+                out_channels,
+                out_channels,
+                strides=1,
+                kernel_size=self.kernel_size,
+                subunits=1,
+                act=self.act,
+                norm=self.norm,
+                dropout=self.dropout,
+                bias=self.bias,
+                last_conv_only=is_top,
+                adn_ordering=self.adn_ordering,
+            )
+            conv = nn.Sequential(conv, ru)
 
-class DefaultTensorboardFormatter(_TensorboardFormatter):
-    def __init__(self, skip_last_target=False, **kwargs):
-        super().__init__(**kwargs)
-        self.skip_last_target = skip_last_target
+        return conv
 
-    def process_batch(self, name, batch):
-        if name == 'targets' and self.skip_last_target:
-            batch = batch[:, :-1, ...]
-
-        tag_template = '{}/batch_{}/channel_{}/slice_{}'
-
-        tagged_images = []
-
-        if batch.ndim == 5:
-            # NCDHW
-            slice_idx = batch.shape[2] // 2  # get the middle slice
-            for batch_idx in range(batch.shape[0]):
-                for channel_idx in range(batch.shape[1]):
-                    tag = tag_template.format(name, batch_idx, channel_idx, slice_idx)
-                    img = batch[batch_idx, channel_idx, slice_idx, ...]
-                    tagged_images.append((tag, self._normalize_img(img)))
-        else:
-            # batch has no channel dim: NDHW
-            slice_idx = batch.shape[1] // 2  # get the middle slice
-            for batch_idx in range(batch.shape[0]):
-                tag = tag_template.format(name, batch_idx, 0, slice_idx)
-                img = batch[batch_idx, slice_idx, ...]
-                tagged_images.append((tag, self._normalize_img(img)))
-
-        return tagged_images
-
-    @staticmethod
-    def _normalize_img(img):
-        return np.nan_to_num((img - np.min(img)) / np.ptp(img))
-
-
-def _find_masks(batch, min_size=10):
-    """Center the z-slice in the 'middle' of a given instance, given a batch of instances
-
-    Args:
-        batch (ndarray): 5d numpy tensor (NCDHW)
-    """
-    result = []
-    for b in batch:
-        assert b.shape[0] == 1
-        patch = b[0]
-        z_sum = patch.sum(axis=(1, 2))
-        coords = np.where(z_sum > min_size)[0]
-        if len(coords) > 0:
-            ind = coords[len(coords) // 2]
-            result.append(b[:, ind:ind + 1, ...])
-        else:
-            ind = b.shape[1] // 2
-            result.append(b[:, ind:ind + 1, ...])
-
-    return np.stack(result, axis=0)
-
-
-def get_tensorboard_formatter(formatter_config):
-    if formatter_config is None:
-        return DefaultTensorboardFormatter()
-
-    class_name = formatter_config['name']
-    m = importlib.import_module('pytorch3dunet.unet3d.utils')
-    clazz = getattr(m, class_name)
-    return clazz(**formatter_config)
-
-
-def expand_as_one_hot(input, C, ignore_index=None):
-    """
-    Converts NxSPATIAL label image to NxCxSPATIAL, where each label gets converted to its corresponding one-hot vector.
-    It is assumed that the batch dimension is present.
-    Args:
-        input (torch.Tensor): 3D/4D input image
-        C (int): number of channels/labels
-        ignore_index (int): ignore index to be kept during the expansion
-    Returns:
-        4D/5D output torch.Tensor (NxCxSPATIAL)
-    """
-    assert input.dim() == 4
-
-    # expand the input tensor to Nx1xSPATIAL before scattering
-    input = input.unsqueeze(1)
-    # create output tensor shape (NxCxSPATIAL)
-    shape = list(input.size())
-    shape[1] = C
-
-    if ignore_index is not None:
-        # create ignore_index mask for the result
-        mask = input.expand(shape) == ignore_index
-        # clone the src tensor and zero out ignore_index in the input
-        input = input.clone()
-        input[input == ignore_index] = 0
-        # scatter to get the one-hot tensor
-        result = torch.zeros(shape).to(input.device).scatter_(1, input, 1)
-        # bring back the ignore_index in the result
-        result[mask] = ignore_index
-        return result
-    else:
-        # scatter to get the one-hot tensor
-        return torch.zeros(shape).to(input.device).scatter_(1, input, 1)
-
-
-def convert_to_numpy(*inputs):
-    """
-    Coverts input tensors to numpy ndarrays
-
-    Args:
-        inputs (iteable of torch.Tensor): torch tensor
-
-    Returns:
-        tuple of ndarrays
-    """
-
-    def _to_numpy(i):
-        assert isinstance(i, torch.Tensor), "Expected input to be torch.Tensor"
-        return i.detach().cpu().numpy()
-
-    return (_to_numpy(i) for i in inputs)
-
-
-def create_optimizer(optimizer_config, model):
-    optim_name = optimizer_config.get('name', 'Adam')
-    # common optimizer settings
-    learning_rate = optimizer_config.get('learning_rate', 1e-3)
-    weight_decay = optimizer_config.get('weight_decay', 0)
-
-    # grab optimizer specific settings and init
-    # optimizer
-    if optim_name == 'Adadelta':
-        rho = optimizer_config.get('rho', 0.9)
-        optimizer = optim.Adadelta(model.parameters(), lr=learning_rate, rho=rho,
-                                   weight_decay=weight_decay)
-    elif optim_name == 'Adagrad':
-        lr_decay = optimizer_config.get('lr_decay', 0)
-        optimizer = optim.Adagrad(model.parameters(), lr=learning_rate, lr_decay=lr_decay,
-                                  weight_decay=weight_decay)
-    elif optim_name == 'AdamW':
-        betas = tuple(optimizer_config.get('betas', (0.9, 0.999)))
-        optimizer = optim.AdamW(model.parameters(), lr=learning_rate, betas=betas,
-                                weight_decay=weight_decay)
-    elif optim_name == 'SparseAdam':
-        betas = tuple(optimizer_config.get('betas', (0.9, 0.999)))
-        optimizer = optim.SparseAdam(model.parameters(), lr=learning_rate, betas=betas)
-    elif optim_name == 'Adamax':
-        betas = tuple(optimizer_config.get('betas', (0.9, 0.999)))
-        optimizer = optim.Adamax(model.parameters(), lr=learning_rate, betas=betas,
-                                 weight_decay=weight_decay)
-    elif optim_name == 'ASGD':
-        lambd = optimizer_config.get('lambd', 0.0001)
-        alpha = optimizer_config.get('alpha', 0.75)
-        t0 = optimizer_config.get('t0', 1e6)
-        optimizer = optim.Adamax(model.parameters(), lr=learning_rate, lambd=lambd,
-                                 alpha=alpha, t0=t0, weight_decay=weight_decay)
-    elif optim_name == 'LBFGS':
-        max_iter = optimizer_config.get('max_iter', 20)
-        max_eval = optimizer_config.get('max_eval', None)
-        tolerance_grad = optimizer_config.get('tolerance_grad', 1e-7)
-        tolerance_change = optimizer_config.get('tolerance_change', 1e-9)
-        history_size = optimizer_config.get('history_size', 100)
-        optimizer = optim.LBFGS(model.parameters(), lr=learning_rate, max_iter=max_iter,
-                                max_eval=max_eval, tolerance_grad=tolerance_grad,
-                                tolerance_change=tolerance_change, history_size=history_size)
-    elif optim_name == 'NAdam':
-        betas = tuple(optimizer_config.get('betas', (0.9, 0.999)))
-        momentum_decay = optimizer_config.get('momentum_decay', 4e-3)
-        optimizer = optim.NAdam(model.parameters(), lr=learning_rate, betas=betas,
-                                momentum_decay=momentum_decay,
-                                weight_decay=weight_decay)
-    elif optim_name == 'RAdam':
-        betas = tuple(optimizer_config.get('betas', (0.9, 0.999)))
-        optimizer = optim.RAdam(model.parameters(), lr=learning_rate, betas=betas,
-                                weight_decay=weight_decay)
-    elif optim_name == 'RMSprop':
-        alpha = optimizer_config.get('alpha', 0.99)
-        optimizer = optim.RMSprop(model.parameters(), lr=learning_rate, alpha=alpha,
-                                  weight_decay=weight_decay)
-    elif optim_name == 'Rprop':
-        momentum = optimizer_config.get('momentum', 0)
-        optimizer = optim.RMSprop(model.parameters(), lr=learning_rate, weight_decay=weight_decay, momentum=momentum)
-    elif optim_name == 'SGD':
-        momentum = optimizer_config.get('momentum', 0)
-        dampening = optimizer_config.get('dampening', 0)
-        nesterov = optimizer_config.get('nesterov', False)
-        optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum,
-                              dampening=dampening, nesterov=nesterov,
-                              weight_decay=weight_decay)
-    else:  # Adam is default
-        betas = tuple(optimizer_config.get('betas', (0.9, 0.999)))
-        optimizer = optim.Adam(model.parameters(), lr=learning_rate, betas=betas,
-                               weight_decay=weight_decay)
-
-    return optimizer
-
-
-def create_lr_scheduler(lr_config, optimizer):
-    if lr_config is None:
-        return None
-    class_name = lr_config.pop('name')
-    m = importlib.import_module('torch.optim.lr_scheduler')
-    clazz = getattr(m, class_name)
-    # add optimizer to the config
-    lr_config['optimizer'] = optimizer
-    return clazz(**lr_config)
-
-
-def get_class(class_name, modules):
-    for module in modules:
-        m = importlib.import_module(module)
-        clazz = getattr(m, class_name, None)
-        if clazz is not None:
-            return clazz
-    raise RuntimeError(f'Unsupported dataset class: {class_name}')
-
-
-
-class AbstractUNet(nn.Module):
-    """
-    Base class for standard and residual UNet.
-
-    Args:
-        in_channels (int): number of input channels
-        out_channels (int): number of output segmentation masks;
-            Note that the of out_channels might correspond to either
-            different semantic classes or to different binary segmentation mask.
-            It's up to the user of the class to interpret the out_channels and
-            use the proper loss criterion during training (i.e. CrossEntropyLoss (multi-class)
-            or BCEWithLogitsLoss (two-class) respectively)
-        f_maps (int, tuple): number of feature maps at each level of the encoder; if it's an integer the number
-            of feature maps is given by the geometric progression: f_maps ^ k, k=1,2,3,4
-        final_sigmoid (bool): if True apply element-wise nn.Sigmoid after the final 1x1 convolution,
-            otherwise apply nn.Softmax. In effect only if `self.training == False`, i.e. during validation/testing
-        basic_module: basic model for the encoder/decoder (DoubleConv, ResNetBlock, ....)
-        layer_order (string): determines the order of layers in `SingleConv` module.
-            E.g. 'crg' stands for GroupNorm3d+Conv3d+ReLU. See `SingleConv` for more info
-        num_groups (int): number of groups for the GroupNorm
-        num_levels (int): number of levels in the encoder/decoder path (applied only if f_maps is an int)
-            default: 4
-        is_segmentation (bool): if True and the model is in eval mode, Sigmoid/Softmax normalization is applied
-            after the final convolution; if False (regression problem) the normalization layer is skipped
-        conv_kernel_size (int or tuple): size of the convolving kernel in the basic_module
-        pool_kernel_size (int or tuple): the size of the window
-        conv_padding (int or tuple): add zero-padding added to all three sides of the input
-        conv_upscale (int): number of the convolution to upscale in encoder if DoubleConv, default: 2
-        upsample (str): algorithm used for decoder upsampling:
-            InterpolateUpsampling:   'nearest' | 'linear' | 'bilinear' | 'trilinear' | 'area'
-            TransposeConvUpsampling: 'deconv'
-            No upsampling:           None
-            Default: 'default' (chooses automatically)
-        dropout_prob (float or tuple): dropout probability, default: 0.1
-        is3d (bool): if True the model is 3D, otherwise 2D, default: True
-    """
-
-    def __init__(self, in_channels, out_channels, final_sigmoid, basic_module, f_maps=64, layer_order='gcr',
-                 num_groups=8, num_levels=4, is_segmentation=True, conv_kernel_size=3, pool_kernel_size=2,
-                 conv_padding=1, conv_upscale=2, upsample='default', dropout_prob=0.1, is3d=True):
-        super(AbstractUNet, self).__init__()
-
-        if isinstance(f_maps, int):
-            f_maps = number_of_features_per_level(f_maps, num_levels=num_levels)
-
-        assert isinstance(f_maps, list) or isinstance(f_maps, tuple)
-        assert len(f_maps) > 1, "Required at least 2 levels in the U-Net"
-        if 'g' in layer_order:
-            assert num_groups is not None, "num_groups must be specified if GroupNorm is used"
-
-        # create encoder path
-        self.encoders = create_encoders(in_channels, f_maps, basic_module, conv_kernel_size,
-                                        conv_padding, conv_upscale, dropout_prob,
-                                        layer_order, num_groups, pool_kernel_size, is3d)
-
-        # create decoder path
-        self.decoders = create_decoders(f_maps, basic_module, conv_kernel_size, conv_padding,
-                                        layer_order, num_groups, upsample, dropout_prob,
-                                        is3d)
-
-        # in the last layer a 1×1 convolution reduces the number of output channels to the number of labels
-        if is3d:
-            self.final_conv = nn.Conv3d(f_maps[0], out_channels, 1)
-        else:
-            self.final_conv = nn.Conv2d(f_maps[0], out_channels, 1)
-
-        if is_segmentation:
-            # semantic segmentation problem
-            if final_sigmoid:
-                self.final_activation = nn.Sigmoid()
-            else:
-                self.final_activation = nn.Softmax(dim=1)
-        else:
-            # regression problem
-            self.final_activation = None
-
-    def forward(self, x):
-        # encoder part
-        encoders_features = []
-        for encoder in self.encoders:
-            x = encoder(x)
-            # reverse the encoder outputs to be aligned with the decoder
-            encoders_features.insert(0, x)
-
-        # remove the last encoder's output from the list
-        # !!remember: it's the 1st in the list
-        encoders_features = encoders_features[1:]
-
-        # decoder part
-        for decoder, encoder_features in zip(self.decoders, encoders_features):
-            # pass the output from the corresponding encoder and the output
-            # of the previous decoder
-            x = decoder(encoder_features, x)
-
-        x = self.final_conv(x)
-
-        # apply final_activation (i.e. Sigmoid or Softmax) only during prediction.
-        # During training the network outputs logits
-        if not self.training and self.final_activation is not None:
-            x = self.final_activation(x)
-
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        x = self.model(x)
         return x
 
 
-class UNet3D(AbstractUNet):
-    """
-    3DUnet model from
-    `"3D U-Net: Learning Dense Volumetric Segmentation from Sparse Annotation"
-        <https://arxiv.org/pdf/1606.06650.pdf>`.
-
-    Uses `DoubleConv` as a basic_module and nearest neighbor upsampling in the decoder
-    """
-
-    def __init__(self, in_channels, out_channels, final_sigmoid=False, f_maps=[16,32,64,128], layer_order='gcr',
-                 num_groups=8, num_levels=4, is_segmentation=True, conv_padding=1,
-                 conv_upscale=2, upsample='default', dropout_prob=0.1, **kwargs):
-        super(UNet3D, self).__init__(in_channels=in_channels,
-                                     out_channels=out_channels,
-                                     final_sigmoid=final_sigmoid,
-                                     basic_module=DoubleConv,
-                                     f_maps=f_maps,
-                                     layer_order=layer_order,
-                                     num_groups=num_groups,
-                                     num_levels=num_levels,
-                                     is_segmentation=is_segmentation,
-                                     conv_padding=conv_padding,
-                                     conv_upscale=conv_upscale,
-                                     upsample=upsample,
-                                     dropout_prob=dropout_prob,
-                                     is3d=True)
-
-
-class ResidualUNet3D(AbstractUNet):
-    """
-    Residual 3DUnet model implementation based on https://arxiv.org/pdf/1706.00120.pdf.
-    Uses ResNetBlock as a basic building block, summation joining instead
-    of concatenation joining and transposed convolutions for upsampling (watch out for block artifacts).
-    Since the model effectively becomes a residual net, in theory it allows for deeper UNet.
-    """
-
-    def __init__(self, in_channels, out_channels, final_sigmoid=True, f_maps=64, layer_order='gcr',
-                 num_groups=8, num_levels=5, is_segmentation=True, conv_padding=1,
-                 conv_upscale=2, upsample='default', dropout_prob=0.1, **kwargs):
-        super(ResidualUNet3D, self).__init__(in_channels=in_channels,
-                                             out_channels=out_channels,
-                                             final_sigmoid=final_sigmoid,
-                                             basic_module=ResNetBlock,
-                                             f_maps=f_maps,
-                                             layer_order=layer_order,
-                                             num_groups=num_groups,
-                                             num_levels=num_levels,
-                                             is_segmentation=is_segmentation,
-                                             conv_padding=conv_padding,
-                                             conv_upscale=conv_upscale,
-                                             upsample=upsample,
-                                             dropout_prob=dropout_prob,
-                                             is3d=True)
-
-
-#class ResidualUNetSE3D(AbstractUNet):
-    # """_summary_
-    # Residual 3DUnet model implementation with squeeze and excitation based on 
-    # https://arxiv.org/pdf/1706.00120.pdf.
-    # Uses ResNetBlockSE as a basic building block, summation joining instead
-    # of concatenation joining and transposed convolutions for upsampling (watch
-    # out for block artifacts). Since the model effectively becomes a residual
-    # net, in theory it allows for deeper UNet.
-    # """
-
-    # def __init__(self, in_channels, out_channels, final_sigmoid=True, f_maps=64, layer_order='gcr',
-    #              num_groups=8, num_levels=5, is_segmentation=True, conv_padding=1,
-    #              conv_upscale=2, upsample='default', dropout_prob=0.1, **kwargs):
-    #     super(ResidualUNetSE3D, self).__init__(in_channels=in_channels,
-    #                                            out_channels=out_channels,
-    #                                            final_sigmoid=final_sigmoid,
-    #                                            basic_module=ResNetBlockSE,
-    #                                            f_maps=f_maps,
-    #                                            layer_order=layer_order,
-    #                                            num_groups=num_groups,
-    #                                            num_levels=num_levels,
-    #                                            is_segmentation=is_segmentation,
-    #                                            conv_padding=conv_padding,
-    #                                            conv_upscale=conv_upscale,
-    #                                            upsample=upsample,
-    #                                            dropout_prob=dropout_prob,
-    #                                            is3d=True)
-
-
-class UNet2D(AbstractUNet):
-    """
-    2DUnet model from
-    `"U-Net: Convolutional Networks for Biomedical Image Segmentation" <https://arxiv.org/abs/1505.04597>`
-    """
-
-    def __init__(self, in_channels, out_channels, final_sigmoid=True, f_maps=64, layer_order='gcr',
-                 num_groups=8, num_levels=4, is_segmentation=True, conv_padding=1,
-                 conv_upscale=2, upsample='default', dropout_prob=0.1, **kwargs):
-        super(UNet2D, self).__init__(in_channels=in_channels,
-                                     out_channels=out_channels,
-                                     final_sigmoid=final_sigmoid,
-                                     basic_module=DoubleConv,
-                                     f_maps=f_maps,
-                                     layer_order=layer_order,
-                                     num_groups=num_groups,
-                                     num_levels=num_levels,
-                                     is_segmentation=is_segmentation,
-                                     conv_padding=conv_padding,
-                                     conv_upscale=conv_upscale,
-                                     upsample=upsample,
-                                     dropout_prob=dropout_prob,
-                                     is3d=False)
-
-
-class ResidualUNet2D(AbstractUNet):
-    """
-    Residual 2DUnet model implementation based on https://arxiv.org/pdf/1706.00120.pdf.
-    """
-
-    def __init__(self, in_channels, out_channels, final_sigmoid=True, f_maps=64, layer_order='gcr',
-                 num_groups=8, num_levels=5, is_segmentation=True, conv_padding=1,
-                 conv_upscale=2, upsample='default', dropout_prob=0.1, **kwargs):
-        super(ResidualUNet2D, self).__init__(in_channels=in_channels,
-                                             out_channels=out_channels,
-                                             final_sigmoid=final_sigmoid,
-                                             basic_module=ResNetBlock,
-                                             f_maps=f_maps,
-                                             layer_order=layer_order,
-                                             num_groups=num_groups,
-                                             num_levels=num_levels,
-                                             is_segmentation=is_segmentation,
-                                             conv_padding=conv_padding,
-                                             conv_upscale=conv_upscale,
-                                             upsample=upsample,
-                                             dropout_prob=dropout_prob,
-                                             is3d=False)
-
-
-def get_model(model_config):
-    model_class = get_class(model_config['name'], modules=[
-        'pytorch3dunet.unet3d.model'
-    ])
-    return model_class(**model_config)
+Unet = UNet
