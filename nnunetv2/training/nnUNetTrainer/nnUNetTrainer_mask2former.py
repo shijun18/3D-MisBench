@@ -68,12 +68,73 @@ from nnunetv2.mymodel.mymodel import get_my_network_from_plans  # 增加了mymod
 from nnunetv2.mynets.get_Unetplusplus_network_from_plans import get_Unetplusplus_network_from_plans
 from transformers.models.mask2former.image_processing_mask2former import Mask2FormerImageProcessor 
 import torch.nn.functional as F
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+
+def post_process_semantic_segmentation(
+        outputs, target_sizes: Optional[List[Tuple[int, int]]] = None
+    ) -> "torch.Tensor":
+        """
+        Converts the output of [`Mask2FormerForUniversalSegmentation`] into semantic segmentation maps. Only supports
+        PyTorch.
+
+        Args:
+            outputs ([`Mask2FormerForUniversalSegmentation`]):
+                Raw outputs of the model.
+            target_sizes (`List[Tuple[int, int]]`, *optional*):
+                List of length (batch_size), where each list item (`Tuple[int, int]]`) corresponds to the requested
+                final size (height, width) of each prediction. If left to None, predictions will not be resized.
+        Returns:
+            `torch.Tensor`:
+                A tensor of shape (batch_size, num_classes, height, width) corresponding to the segmentation masks
+                with grad mode.
+        """
+        class_queries_logits = outputs.class_queries_logits  # [batch_size, num_queries, num_classes+1]
+        masks_queries_logits = outputs.masks_queries_logits  # [batch_size, num_queries, height, width]
+
+        h = target_sizes[0][0]
+        w = target_sizes[0][1]
+
+        # Scale back to preprocessed image size - (384, 384) for all models
+        masks_queries_logits = torch.nn.functional.interpolate(
+            masks_queries_logits, size=(h, w), mode="bilinear", align_corners=False
+        )
+
+        # Remove the null class `[..., :-1]`
+        masks_classes = class_queries_logits.softmax(dim=-1)[..., :-1]
+        masks_probs = masks_queries_logits.sigmoid()  # [batch_size, num_queries, height, width]
+
+        # Semantic segmentation logits of shape (batch_size, num_classes, height, width)
+        segmentation = torch.einsum("bqc, bqhw -> bchw", masks_classes, masks_probs)
+        batch_size = class_queries_logits.shape[0]
+
+        # Resize logits and compute semantic segmentation maps
+        if target_sizes is not None:
+            if batch_size != len(target_sizes):
+                raise ValueError(
+                    "Make sure that you pass in as many target sizes as the batch dimension of the logits"
+                )
+
+            semantic_segmentation = []
+            for idx in range(batch_size):
+                resized_logits = torch.nn.functional.interpolate(
+                    segmentation[idx].unsqueeze(dim=0), size=target_sizes[idx], mode="bilinear", align_corners=False
+                )
+                semantic_map = resized_logits[0].argmax(dim=0)
+                semantic_segmentation.append(semantic_map)
+        else:
+            semantic_segmentation = segmentation.argmax(dim=1)
+            semantic_segmentation = [semantic_segmentation[i] for i in range(semantic_segmentation.shape[0])]
+
+        return segmentation.requires_grad_(True) # change the return value and enable grad mode
+
+
+
 
 class nnUNetTrainer_mask2former(nnUNetTrainer):
     def initialize(self):
         if not self.was_initialized:
             ### Some hyperparameters for you to fiddle with
-            self.initial_lr = 1e-4
+            self.initial_lr = 1e-3
             # 权重衰减用于控制正则化项的强度，权重衰减可以帮助防止模型过拟合
             self.weight_decay = 3e-5
             # 用于控制正样本（foreground）的过采样比例
@@ -166,22 +227,33 @@ class nnUNetTrainer_mask2former(nnUNetTrainer):
         # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
         # So autocast will only be active if we have a cuda device.
         with autocast(self.device.type, enabled=True) if self.device.type == 'cuda' else dummy_context():
+            print(data.size())
             output = self.network(data)
+            # print(output.class_queries_logits.requires_grad)
             # del data
             # l = self.loss(output, target[0])
-            processor = Mask2FormerImageProcessor()
-            target_size = [[target.size()[-2],target.size()[-1]]]*self.batch_size
-            output = processor.post_process_semantic_segmentation(outputs = output,target_sizes=target_size)
-            output = torch.stack(output,dim = 0).float()
+            # processor = Mask2FormerImageProcessor()
+            # target_size = [[target.size()[-2],target.size()[-1]]]*self.batch_size
+            # # output = processor.post_process_semantic_segmentation(outputs = output,target_sizes=target_size)
+            # output = post_process_semantic_segmentation(outputs = output,target_sizes=target_size)
+
+            print(type(output))
+            print(output.requires_grad)
             print(output.size())
-            label_manager = self.plans_manager.get_label_manager(self.dataset_json)
-            num_classes = label_manager.num_segmentation_heads
-            output = output.to (torch.int64)
-            output = F.one_hot(output, num_classes=num_classes)
-            output = output.float()
-            output = output.permute(0, 3, 1, 2)
-            print(output.size())
+            # output = torch.stack(output,dim = 0).float()
+            # print(output.size())
+            # label_manager = self.plans_manager.get_label_manager(self.dataset_json)
+            # num_classes = label_manager.num_segmentation_heads
+            # output = output.to (torch.int64)
+            # output = F.one_hot(output, num_classes=num_classes)
+            # output = output.float()
+            # output = output.permute(0, 3, 1, 2)
+            # print(output.size())
+            # print(output.requires_grad)
+
             l = self.loss(output, target)
+            # print(type(l))
+            print(l)
         
         # 如果存在梯度缩放器：
         if self.grad_scaler is not None:
@@ -195,6 +267,84 @@ class nnUNetTrainer_mask2former(nnUNetTrainer):
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
             self.optimizer.step()
         return {'loss': l.detach().cpu().numpy()}
+    
+
+    def validation_step(self, batch: dict) -> dict:
+            data = batch['data']
+            target = batch['target']
+
+            data = data.to(self.device, non_blocking=True)
+            if isinstance(target, list):
+                target = [i.to(self.device, non_blocking=True) for i in target]
+            else:
+                target = target.to(self.device, non_blocking=True)
+
+
+            #self.optimizer.zero_grad(set_to_none=True)
+            # Autocast is a little bitch.
+            # If the device_type is 'cpu' then it's slow as heck and needs to be disabled.
+            # If the device_type is 'mps' then it will complain that mps is not implemented, even if enabled=False is set. Whyyyyyyy. (this is why we don't make use of enabled=False)
+            # So autocast will only be active if we have a cuda device.
+            with autocast(self.device.type, enabled=True) if self.device.type == 'cuda' else dummy_context():
+                output = self.network(data)
+                # target_size = [[target.size()[-2],target.size()[-1]]]*self.batch_size
+                # # output = processor.post_process_semantic_segmentation(outputs = output,target_sizes=target_size)
+                # output = post_process_semantic_segmentation(outputs = output,target_sizes=target_size)
+                #print(data.shape)
+                del data
+                # l = self.loss(output, target)
+                l = self.loss(output, target)
+
+            # we only need the output with the highest output resolution
+            # output = output[0]
+            #print(output.shape)
+            output = output
+            target = target
+
+            # print(output.shape)
+            # print(target.shape)
+
+
+
+            # the following is needed for online evaluation. Fake dice (green line)
+            axes = [0] + list(range(2, output.ndim))
+
+            if self.label_manager.has_regions:
+                predicted_segmentation_onehot = (torch.sigmoid(output) > 0.5).long()
+            else:
+                # no need for softmax
+                output_seg = output.argmax(1)[:, None]
+                predicted_segmentation_onehot = torch.zeros(output.shape, device=output.device, dtype=torch.float32)
+                predicted_segmentation_onehot.scatter_(1, output_seg, 1)
+                del output_seg
+
+            if self.label_manager.has_ignore_label:
+                if not self.label_manager.has_regions:
+                    mask = (target != self.label_manager.ignore_label).float()
+                    # CAREFUL that you don't rely on target after this line!
+                    target[target == self.label_manager.ignore_label] = 0
+                else:
+                    mask = 1 - target[:, -1:]
+                    # CAREFUL that you don't rely on target after this line!
+                    target = target[:, :-1]
+            else:
+                mask = None
+
+            tp, fp, fn, _ = get_tp_fp_fn_tn(predicted_segmentation_onehot, target, axes=axes, mask=mask)
+
+            tp_hard = tp.detach().cpu().numpy()
+            fp_hard = fp.detach().cpu().numpy()
+            fn_hard = fn.detach().cpu().numpy()
+            if not self.label_manager.has_regions:
+                # if we train with regions all segmentation heads predict some kind of foreground. In conventional
+                # (softmax training) there needs tobe one output for the background. We are not interested in the
+                # background Dice
+                # [1:] in order to remove background
+                tp_hard = tp_hard[1:]
+                fp_hard = fp_hard[1:]
+                fn_hard = fn_hard[1:]
+
+            return {'loss': l.detach().cpu().numpy(), 'tp_hard': tp_hard, 'fp_hard': fp_hard, 'fn_hard': fn_hard}
     
 if __name__ == '__main__':
     tensor1 = torch.rand([1,2,3])

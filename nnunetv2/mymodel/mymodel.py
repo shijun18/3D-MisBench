@@ -14,7 +14,7 @@ from nnunetv2.mymodel.unetr import UNETR
 from nnunetv2.mymodel.attentionunet import AttentionUnet
 from nnunetv2.mymodel.hrnet.hrnet import hrnet48
 from nnunetv2.mymodel.ccnet.ccnet import Seg_Model
-from nnunetv2.mymodel.mask2former.mask2former import Mask2Former
+from nnunetv2.mymodel.mask2former.mask2former import Mask2Former, myMask2Former
 from nnunetv2.mymodel.TransUNet.vit_seg_modeling import VisionTransformer as ViT_seg
 from nnunetv2.mymodel.TransUNet.vit_seg_modeling import CONFIGS as CONFIGS_ViT_seg
 from nnunetv2.mymodel.unet_3d2 import UNet
@@ -130,7 +130,7 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         model = DsTransUnet(128, label_manager.num_segmentation_heads, in_ch=num_input_channels)
     
     elif(model == 'mask2former'):
-        model = Mask2Former(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels)
+        model = myMask2Former(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels)
 
 
     return model
