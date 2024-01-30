@@ -70,62 +70,62 @@ from transformers.models.mask2former.image_processing_mask2former import Mask2Fo
 import torch.nn.functional as F
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
-def post_process_semantic_segmentation(
-        outputs, target_sizes: Optional[List[Tuple[int, int]]] = None
-    ) -> "torch.Tensor":
-        """
-        Converts the output of [`Mask2FormerForUniversalSegmentation`] into semantic segmentation maps. Only supports
-        PyTorch.
+# def post_process_semantic_segmentation(
+#         outputs, target_sizes: Optional[List[Tuple[int, int]]] = None
+#     ) -> "torch.Tensor":
+#         """
+#         Converts the output of [`Mask2FormerForUniversalSegmentation`] into semantic segmentation maps. Only supports
+#         PyTorch.
 
-        Args:
-            outputs ([`Mask2FormerForUniversalSegmentation`]):
-                Raw outputs of the model.
-            target_sizes (`List[Tuple[int, int]]`, *optional*):
-                List of length (batch_size), where each list item (`Tuple[int, int]]`) corresponds to the requested
-                final size (height, width) of each prediction. If left to None, predictions will not be resized.
-        Returns:
-            `torch.Tensor`:
-                A tensor of shape (batch_size, num_classes, height, width) corresponding to the segmentation masks
-                with grad mode.
-        """
-        class_queries_logits = outputs.class_queries_logits  # [batch_size, num_queries, num_classes+1]
-        masks_queries_logits = outputs.masks_queries_logits  # [batch_size, num_queries, height, width]
+#         Args:
+#             outputs ([`Mask2FormerForUniversalSegmentation`]):
+#                 Raw outputs of the model.
+#             target_sizes (`List[Tuple[int, int]]`, *optional*):
+#                 List of length (batch_size), where each list item (`Tuple[int, int]]`) corresponds to the requested
+#                 final size (height, width) of each prediction. If left to None, predictions will not be resized.
+#         Returns:
+#             `torch.Tensor`:
+#                 A tensor of shape (batch_size, num_classes, height, width) corresponding to the segmentation masks
+#                 with grad mode.
+#         """
+#         class_queries_logits = outputs.class_queries_logits  # [batch_size, num_queries, num_classes+1]
+#         masks_queries_logits = outputs.masks_queries_logits  # [batch_size, num_queries, height, width]
 
-        h = target_sizes[0][0]
-        w = target_sizes[0][1]
+#         h = target_sizes[0][0]
+#         w = target_sizes[0][1]
 
-        # Scale back to preprocessed image size - (384, 384) for all models
-        masks_queries_logits = torch.nn.functional.interpolate(
-            masks_queries_logits, size=(h, w), mode="bilinear", align_corners=False
-        )
+#         # Scale back to preprocessed image size - (384, 384) for all models
+#         masks_queries_logits = torch.nn.functional.interpolate(
+#             masks_queries_logits, size=(h, w), mode="bilinear", align_corners=False
+#         )
 
-        # Remove the null class `[..., :-1]`
-        masks_classes = class_queries_logits.softmax(dim=-1)[..., :-1]
-        masks_probs = masks_queries_logits.sigmoid()  # [batch_size, num_queries, height, width]
+#         # Remove the null class `[..., :-1]`
+#         masks_classes = class_queries_logits.softmax(dim=-1)[..., :-1]
+#         masks_probs = masks_queries_logits.sigmoid()  # [batch_size, num_queries, height, width]
 
-        # Semantic segmentation logits of shape (batch_size, num_classes, height, width)
-        segmentation = torch.einsum("bqc, bqhw -> bchw", masks_classes, masks_probs)
-        batch_size = class_queries_logits.shape[0]
+#         # Semantic segmentation logits of shape (batch_size, num_classes, height, width)
+#         segmentation = torch.einsum("bqc, bqhw -> bchw", masks_classes, masks_probs)
+#         batch_size = class_queries_logits.shape[0]
 
-        # Resize logits and compute semantic segmentation maps
-        if target_sizes is not None:
-            if batch_size != len(target_sizes):
-                raise ValueError(
-                    "Make sure that you pass in as many target sizes as the batch dimension of the logits"
-                )
+#         # Resize logits and compute semantic segmentation maps
+#         if target_sizes is not None:
+#             if batch_size != len(target_sizes):
+#                 raise ValueError(
+#                     "Make sure that you pass in as many target sizes as the batch dimension of the logits"
+#                 )
 
-            semantic_segmentation = []
-            for idx in range(batch_size):
-                resized_logits = torch.nn.functional.interpolate(
-                    segmentation[idx].unsqueeze(dim=0), size=target_sizes[idx], mode="bilinear", align_corners=False
-                )
-                semantic_map = resized_logits[0].argmax(dim=0)
-                semantic_segmentation.append(semantic_map)
-        else:
-            semantic_segmentation = segmentation.argmax(dim=1)
-            semantic_segmentation = [semantic_segmentation[i] for i in range(semantic_segmentation.shape[0])]
+#             semantic_segmentation = []
+#             for idx in range(batch_size):
+#                 resized_logits = torch.nn.functional.interpolate(
+#                     segmentation[idx].unsqueeze(dim=0), size=target_sizes[idx], mode="bilinear", align_corners=False
+#                 )
+#                 semantic_map = resized_logits[0].argmax(dim=0)
+#                 semantic_segmentation.append(semantic_map)
+#         else:
+#             semantic_segmentation = segmentation.argmax(dim=1)
+#             semantic_segmentation = [semantic_segmentation[i] for i in range(semantic_segmentation.shape[0])]
 
-        return segmentation.requires_grad_(True) # change the return value and enable grad mode
+#         return segmentation.requires_grad_(True) # change the return value and enable grad mode
 
 
 
@@ -134,14 +134,14 @@ class nnUNetTrainer_mask2former(nnUNetTrainer):
     def initialize(self):
         if not self.was_initialized:
             ### Some hyperparameters for you to fiddle with
-            self.initial_lr = 1e-3
+            self.initial_lr = 1e-4
             # 权重衰减用于控制正则化项的强度，权重衰减可以帮助防止模型过拟合
             self.weight_decay = 3e-5
             # 用于控制正样本（foreground）的过采样比例
             self.oversample_foreground_percent = 0.33
             self.num_iterations_per_epoch = 250
             self.num_val_iterations_per_epoch = 50
-            self.batch_size = 16
+            self.batch_size = 8
             self.num_epochs = 500
             self.current_epoch = 0
             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,
@@ -257,9 +257,24 @@ class nnUNetTrainer_mask2former(nnUNetTrainer):
         
         # 如果存在梯度缩放器：
         if self.grad_scaler is not None:
+
             self.grad_scaler.scale(l).backward()
+            
+            # para_mean = sum([para.grad.sum() for para in self.network.parameters()])
+            # print('mean paramters grads: ', para_mean)
+            # print('output: ', output.mean())
+
+            # for name, para in self.network.named_parameters():
+
+            #     para_mean = para.mean()
+            #     para_grad = para.grad.sum()
+            #     print(name, 'para: ', para_mean)
+            #     print(name, 'grad: ', para_grad)
+            # print('output grad: ', output.grad.mean())
+
             self.grad_scaler.unscale_(self.optimizer)
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)
+            
             self.grad_scaler.step(self.optimizer)
             self.grad_scaler.update()
         else:

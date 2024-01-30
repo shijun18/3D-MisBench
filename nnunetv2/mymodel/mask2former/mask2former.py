@@ -44,11 +44,11 @@ def post_process_semantic_segmentation(
 
         # Semantic segmentation logits of shape (batch_size, num_classes, height, width)
 
-        # segmentation = torch.einsum("bqc, bqhw -> bchw", masks_classes, masks_probs)
+        segmentation = torch.einsum("bqc, bqhw -> bchw", masks_classes, masks_probs)
         # batch_size = class_queries_logits.shape[0]
 
-        class_masks_queries_logits = torch.einsum('bqc,bqhw->bqchw', masks_classes, masks_probs)
-        segmentation = torch.sum(class_masks_queries_logits, dim=1)
+        # class_masks_queries_logits = torch.einsum('bqc,bqhw->bqchw', masks_classes, masks_probs)
+        # segmentation = torch.sum(class_masks_queries_logits, dim=1)
 
         return segmentation # change the return value and enable grad mode
 
@@ -60,6 +60,7 @@ def Mask2Former(num_classes,in_channels):
         num_labels=num_classes, 
         
         backbone_config = CONFIG_MAPPING["swin"](
+                image_size=224,
                 num_channels=in_channels,
                 patch_size=4,
                 embed_dim=96,

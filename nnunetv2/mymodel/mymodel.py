@@ -22,6 +22,7 @@ from nnunetv2.mymodel.DsTransUNet.DS_TransUNet import UNet as DsTransUnet
 from monai.networks.layers.factories import Act, Norm
 from nnunetv2.mymodel.unet_3d import ResidualUnit
 from nnunetv2.mymodel.unet_3d2 import DoubleConv3D, Down3D, Up3D, Tail3D
+from nnunetv2.mymodel.segmenter.segmenter import get_segmenter
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -131,6 +132,9 @@ def get_my_network_from_plans(plans_manager: PlansManager,
     
     elif(model == 'mask2former'):
         model = myMask2Former(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels)
+    
+    elif(model == 'segmenter'):
+        model = get_segmenter(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,patch_size=configuration_manager.patch_size[0])
 
 
     return model

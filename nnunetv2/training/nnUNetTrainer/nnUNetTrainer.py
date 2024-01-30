@@ -925,7 +925,6 @@ class nnUNetTrainer(object):
         # So autocast will only be active if we have a cuda device.
         with autocast(self.device.type, enabled=True) if self.device.type == 'cuda' else dummy_context():
             output = self.network(data)
-            print(output.requires_grad)
             # del data
             # l = self.loss(output, target[0])
             l = self.loss(output, target)
