@@ -928,7 +928,6 @@ class nnUNetTrainer(object):
             # del data
             # l = self.loss(output, target[0])
             l = self.loss(output, target)
-        
         # 如果存在梯度缩放器：
         if self.grad_scaler is not None:
             self.grad_scaler.scale(l).backward()

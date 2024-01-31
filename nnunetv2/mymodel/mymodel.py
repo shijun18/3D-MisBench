@@ -14,7 +14,7 @@ from nnunetv2.mymodel.unetr import UNETR
 from nnunetv2.mymodel.attentionunet import AttentionUnet
 from nnunetv2.mymodel.hrnet.hrnet import hrnet48
 from nnunetv2.mymodel.ccnet.ccnet import Seg_Model
-from nnunetv2.mymodel.mask2former.mask2former import Mask2Former
+from nnunetv2.mymodel.mask2former.mask2former import Mask2Former, myMask2Former
 from nnunetv2.mymodel.TransUNet.vit_seg_modeling import VisionTransformer as ViT_seg
 from nnunetv2.mymodel.TransUNet.vit_seg_modeling import CONFIGS as CONFIGS_ViT_seg
 from nnunetv2.mymodel.unet_3d2 import UNet
@@ -24,6 +24,7 @@ from nnunetv2.mymodel.unet_3d import ResidualUnit
 from nnunetv2.mymodel.unet_3d2 import DoubleConv3D, Down3D, Up3D, Tail3D
 from nnunetv2.mymodel.UTNet.utnet import UTNet
 from nnunetv2.mymodel.swin_unet import SwinUnet, SwinUnet_config
+from nnunetv2.mymodel.segmenter.segmenter import get_segmenter
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -132,7 +133,10 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         model = DsTransUnet(128, label_manager.num_segmentation_heads, in_ch=num_input_channels)
     
     elif(model == 'mask2former'):
-        model = Mask2Former(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels)
+        model = myMask2Former(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels)
+    
+    elif(model == 'segmenter'):
+        model = get_segmenter(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,patch_size=configuration_manager.patch_size[0])
 
     elif(model == 'utnet'):
         # 至少需要20G显存 
