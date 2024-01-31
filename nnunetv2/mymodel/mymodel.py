@@ -22,6 +22,8 @@ from nnunetv2.mymodel.DsTransUNet.DS_TransUNet import UNet as DsTransUnet
 from monai.networks.layers.factories import Act, Norm
 from nnunetv2.mymodel.unet_3d import ResidualUnit
 from nnunetv2.mymodel.unet_3d2 import DoubleConv3D, Down3D, Up3D, Tail3D
+from nnunetv2.mymodel.UTNet.utnet import UTNet
+from nnunetv2.mymodel.swin_unet import SwinUnet, SwinUnet_config
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -119,12 +121,12 @@ def get_my_network_from_plans(plans_manager: PlansManager,
     # 中的第一个数字，改为num_input_channels的大小
         print(num_input_channels)
         config_vit = CONFIGS_ViT_seg['R50-ViT-B_16']
-        config_vit.patches.grid = (int(configuration_manager.patch_size[0] / 16), int(configuration_manager.patch_size[0] / 16))
+        config_vit.patches.grid = (int(configuration_manager.patch_size[0]//16), int(configuration_manager.patch_size[0]//16))
         config_vit.n_classes = label_manager.num_segmentation_heads
         model = ViT_seg(config_vit, img_size=configuration_manager.patch_size[0], num_classes=label_manager.num_segmentation_heads)
-    elif(model == 'dstransunet'):
     
-    # 至少需要40G显存
+    elif(model == 'dstransunet'):
+        # 至少需要40G显存
         print(label_manager.num_segmentation_heads)
         print(num_input_channels)
         model = DsTransUnet(128, label_manager.num_segmentation_heads, in_ch=num_input_channels)
@@ -132,6 +134,14 @@ def get_my_network_from_plans(plans_manager: PlansManager,
     elif(model == 'mask2former'):
         model = Mask2Former(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels)
 
+    elif(model == 'utnet'):
+        # 至少需要20G显存 
+        model = UTNet(in_chan=num_input_channels, num_classes= label_manager.num_segmentation_heads, reduce_size=configuration_manager.patch_size[0]//32)
+
+    elif(model == 'swinunet'):
+        # 至少需要20G显存
+        config = SwinUnet_config(in_chans=num_input_channels, num_classes=label_manager.num_segmentation_heads, pic_size=configuration_manager.patch_size[0])
+        model = SwinUnet(config, img_size=configuration_manager.patch_size[0], num_classes=label_manager.num_segmentation_heads)
 
     return model
 
