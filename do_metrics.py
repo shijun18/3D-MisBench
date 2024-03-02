@@ -17,7 +17,7 @@ if __name__ == '__main__':
 
     seg_path = '/staff/wangtiantong/nnU-Net/output/unetpp_027'
     gd_path = "/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_raw/Dataset027_ACDC/labelsTs"
-    save_dir = '/staff/wangtiantong/nnU-Net/output/deeplabv3p_027/metrics'
+    save_dir = '/staff/wangtiantong/nnU-Net/output/unetpp_027/metrics'
     seg = sorted(os.listdir(seg_path))
 
     dices = []
