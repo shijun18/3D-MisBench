@@ -29,6 +29,9 @@ from nnunetv2.mymodel.UNet2022 import unet2022
 from nnunetv2.mymodel.CoTr.ResTranUnet import ResTranUnet
 from nnunetv2.mymodel.MedicalTransformer.axialnet import MedT
 from nnunetv2.mymodel.TransFuse.TransFuse import TransFuse_S,TransFuse_L
+from nnunetv2.mymodel.SETR.SETR import my_SETR_Naive_S
+from nnunetv2.mymodel.TransBTS.TransBTS import my_TransBTS
+from nnunetv2.mymodel.UCTransNet.UCTransNet import get_my_UCTransNet
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -151,6 +154,12 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         # 至少需要20G显存
         config = SwinUnet_config(in_chans=num_input_channels, num_classes=label_manager.num_segmentation_heads, pic_size=configuration_manager.patch_size[0])
         model = SwinUnet(config, img_size=configuration_manager.patch_size[0], num_classes=label_manager.num_segmentation_heads)
+    
+    elif(model == 'setr'):
+        model = my_SETR_Naive_S(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,patch_size=configuration_manager.patch_size[0])
+
+    elif(model== 'transbts'):
+        model = my_TransBTS(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,patch_size=configuration_manager.patch_size[0])
 
     elif(model == 'unet2022'):
         
@@ -169,6 +178,8 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         model = TransFuse_L(num_classes= label_manager.num_segmentation_heads, img_size=configuration_manager.patch_size[0], in_ch= num_input_channels)
         # model = TransFuse_S(num_classes= label_manager.num_segmentation_heads, img_size=configuration_manager.patch_size[0], in_ch= num_input_channels)
 
+    elif(model == 'uctransnet'):
+        model = get_my_UCTransNet(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,img_size = configuration_manager.patch_size[0])
     return model
 
 ### important:需要 pip install einops==0.3.0 版本必须正确，否则attentionUnet和unetr运行不了

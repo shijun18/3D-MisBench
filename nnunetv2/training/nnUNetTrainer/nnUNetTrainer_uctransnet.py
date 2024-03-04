@@ -72,7 +72,7 @@ from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
 
 
-class nnUNetTrainer_segmenter(nnUNetTrainer):
+class nnUNetTrainer_uctransnet(nnUNetTrainer):
     def initialize(self):
         if not self.was_initialized:
             ### Some hyperparameters for you to fiddle with
@@ -83,8 +83,9 @@ class nnUNetTrainer_segmenter(nnUNetTrainer):
             self.oversample_foreground_percent = 0.33
             self.num_iterations_per_epoch = 250
             self.num_val_iterations_per_epoch = 50
-            self.num_epochs = 600
+            self.num_epochs = 300
             self.current_epoch = 0
+            self.batch_size = 16
 
             if self.configuration_manager.patch_size[0] > self.configuration_manager.patch_size[1]:
                 self.configuration_manager.patch_size[1]=self.configuration_manager.patch_size[0]
