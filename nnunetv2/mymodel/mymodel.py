@@ -8,7 +8,7 @@ from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager
 from torch import nn
 from nnunetv2.mymodel.unet_3d1 import UNet3D
 from nnunetv2.mymodel.unet_3p import UNet_3Plus
-# from nnunetv2.mymodel.unet_3p1 import Generic_UNet3P
+from nnunetv2.mymodel.unet_3p1 import Generic_UNet3P
 # from holocron.models.segmentation import unet3p
 from nnunetv2.mymodel.unetr import UNETR
 from nnunetv2.mymodel.attentionunet import AttentionUnet
@@ -25,6 +25,10 @@ from nnunetv2.mymodel.unet_3d2 import DoubleConv3D, Down3D, Up3D, Tail3D
 from nnunetv2.mymodel.UTNet.utnet import UTNet
 from nnunetv2.mymodel.swin_unet import SwinUnet, SwinUnet_config
 from nnunetv2.mymodel.segmenter.segmenter import get_segmenter
+from nnunetv2.mymodel.UNet2022 import unet2022
+from nnunetv2.mymodel.CoTr.ResTranUnet import ResTranUnet
+from nnunetv2.mymodel.MedicalTransformer.axialnet import MedT
+from nnunetv2.mymodel.TransFuse.TransFuse import TransFuse_S,TransFuse_L
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -88,8 +92,9 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         # model = Generic_UNet3P(num_input_channels, configuration_manager.UNet_base_num_features, label_manager.num_segmentation_heads,
         #                             7, 2, 2, conv_op, norm_op, norm_op_kwargs, dropout_op,
         #                             dropout_op_kwargs,
-        #                             net_nonlin, net_nonlin_kwargs, True, False, lambda x: x, InitWeights_He(1e-2),
+        #                             net_nonlin, net_nonlin_kwargs, False, False, lambda x: x, InitWeights_He(1e-2),
         #                             None, None, False, True, False )
+        # print(model)
         model = UNet_3Plus(num_input_channels, label_manager.num_segmentation_heads)
         # model = unet3p(pretrained=False, progress=False,in_channels=num_input_channels,num_classes=label_manager.num_segmentation_heads)
     elif(model == 'unetr'): 
@@ -110,13 +115,13 @@ def get_my_network_from_plans(plans_manager: PlansManager,
                                 activation=None, upsampling=4, aux_params=None)
         
     elif(model == 'hrnet'):
+        # 显存占用太多
         model = hrnet48(pretrained=False,progress=True,
                         in_channels=num_input_channels,
                         num_classes=label_manager.num_segmentation_heads)
     elif(model == 'ccnet'):
-        print("22222222")
         model = Seg_Model(num_classes=label_manager.num_segmentation_heads,
-                          in_channels=num_input_channels,criterion=None, pretrained_model=None, recurrence=0,)
+                          in_channels=num_input_channels,criterion=None, pretrained_model=None, recurrence=0)
     elif(model == 'transunet'):
     # 需要手动在nnunetv2\mymodel\TransUNet\vit_seg_modeling_resnet_skip.py的128行修改维度，即修改('conv', StdConv2d(4, width, kernel_size=7, stride=2, bias=False, padding=3))
     # 中的第一个数字，改为num_input_channels的大小
@@ -147,6 +152,25 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         config = SwinUnet_config(in_chans=num_input_channels, num_classes=label_manager.num_segmentation_heads, pic_size=configuration_manager.patch_size[0])
         model = SwinUnet(config, img_size=configuration_manager.patch_size[0], num_classes=label_manager.num_segmentation_heads)
 
+    elif(model == 'unet2022'):
+        
+        model = unet2022(model_size='Base',num_input_channels=num_input_channels,num_classes=label_manager.num_segmentation_heads,img_size=configuration_manager.patch_size[0],deep_supervision=False)
+    
+    elif(model == 'CoTr'):
+        # only support 3D image
+        model = ResTranUnet(norm_cfg= 'IN' , activation_cfg= 'LeakyReLU' ,img_size=configuration_manager.patch_size, in_channels=num_input_channels ,num_classes=label_manager.num_segmentation_heads)
+
+    elif(model == 'MedT'):
+        ## 占用显存过多 70G 解决方案：batch size //4
+        model = MedT(num_classes= label_manager.num_segmentation_heads, img_size = configuration_manager.patch_size[0], imgchan = num_input_channels)
+    elif(model == 'TransFuse'):
+        # 建议小数据集上用L, 大数据集上用S
+        print("using TransFuse_L")
+        model = TransFuse_L(num_classes= label_manager.num_segmentation_heads, img_size=configuration_manager.patch_size[0], in_ch= num_input_channels)
+        # model = TransFuse_S(num_classes= label_manager.num_segmentation_heads, img_size=configuration_manager.patch_size[0], in_ch= num_input_channels)
+
     return model
 
 ### important:需要 pip install einops==0.3.0 版本必须正确，否则attentionUnet和unetr运行不了
+
+## 模型有大小之分时，该怎么选择？

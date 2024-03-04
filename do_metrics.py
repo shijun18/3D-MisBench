@@ -15,9 +15,9 @@ from batchgenerators.utilities.file_and_folder_operations import *
 
 if __name__ == '__main__':
 
-    seg_path = '/staff/wangtiantong/nnU-Net/output/unetpp_027'
-    gd_path = "/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_raw/Dataset027_ACDC/labelsTs"
-    save_dir = '/staff/wangtiantong/nnU-Net/output/deeplabv3p_027/metrics'
+    seg_path = '/staff/wangbingxun/projects/nnUnet/output/Dataset001/3d_unet'
+    gd_path = "/staff/wangbingxun/projects/nnUnet/nnUNetFrame/DATASET/nnUNet_raw/Dataset100_BrainTumour/labelsTr"
+    save_dir = '/staff/wangbingxun/projects/nnUnet/output/100/3d_fullres'
     seg = sorted(os.listdir(seg_path))
 
     dices = []
@@ -257,5 +257,5 @@ if __name__ == '__main__':
 
 
     # 保存为 CSV 文件
-    df.to_csv(os.path.join(save_dir, 'metrics_1.csv'))
+    df.to_csv(os.path.join(save_dir, 'metrics.csv'))
 
