@@ -88,7 +88,7 @@ class TransformerBTS(nn.Module):
 
         else:
             print(x.size())
-            x = self.Unet(x)
+            x1_1, x2_1, x3_1, x  = self.Unet(x)
             x = self.bn(x)
             x = self.relu(x)
             x = (
@@ -101,7 +101,7 @@ class TransformerBTS(nn.Module):
             x = x.permute(0, 2, 3, 1).contiguous()
             x = x.view(x.size(0), -1, self.flatten_dim)
             x = self.linear_encoding(x)
-
+        print("before_pe",x.size())
         x = self.position_encoding(x)
         x = self.pe_dropout(x)
 
@@ -229,7 +229,7 @@ class BTS(TransformerBTS):
         y2 = self.DeBlock2(y2)
 
         y = self.endconv(y2)      # (1, 4, 128, 128, 128)
-        y = self.Softmax(y)
+        # y = self.Softmax(y)
         return y
 
 class EnBlock1(nn.Module):

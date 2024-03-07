@@ -85,12 +85,12 @@ class nnUNetTrainer_transbts(nnUNetTrainer):
             self.num_val_iterations_per_epoch = 50
             self.num_epochs = 300
             self.current_epoch = 0
-            self.batch_size = 8
+            self.batch_size = 4
 
-            if self.configuration_manager.patch_size[0] > self.configuration_manager.patch_size[1]:
-                self.configuration_manager.patch_size[1]=self.configuration_manager.patch_size[0]
-            elif self.configuration_manager.patch_size[0] < self.configuration_manager.patch_size[1]:
-                self.configuration_manager.patch_size[0]=self.configuration_manager.patch_size[1]
+            print(self.configuration_manager.patch_size)
+            self.configuration_manager.patch_size[0]=64
+            self.configuration_manager.patch_size[1]=64
+            self.configuration_manager.patch_size[2]=64
 
             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,
                                                                    self.dataset_json)
@@ -164,10 +164,10 @@ class nnUNetTrainer_transbts(nnUNetTrainer):
         self.network.eval()
         print(self.configuration_manager.patch_size)
 
-        if self.configuration_manager.patch_size[0] > self.configuration_manager.patch_size[1]:
-            self.configuration_manager.patch_size[1]=self.configuration_manager.patch_size[0]
-        elif self.configuration_manager.patch_size[0] < self.configuration_manager.patch_size[1]:
-            self.configuration_manager.patch_size[0]=self.configuration_manager.patch_size[1]
+        self.configuration_manager.patch_size[0]=64
+        self.configuration_manager.patch_size[1]=64
+        self.configuration_manager.patch_size[2]=64
+
         print(self.configuration_manager.patch_size)
         predictor = nnUNetPredictor(tile_step_size=0.5, use_gaussian=True, use_mirroring=True,
                                     perform_everything_on_gpu=True, device=self.device, verbose=False,
