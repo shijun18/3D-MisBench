@@ -34,7 +34,10 @@ from acvl_utils.cropping_and_padding.padding import pad_nd_image
 from tqdm import tqdm
 
 
-class nnUNetTrainer_unet3p(nnUNetTrainer):
+
+
+
+class nnUNetTrainer_TransFuse(nnUNetTrainer):
     def initialize(self):
         if not self.was_initialized:
             ### Some hyperparameters for you to fiddle with
@@ -47,6 +50,16 @@ class nnUNetTrainer_unet3p(nnUNetTrainer):
             self.num_val_iterations_per_epoch = 50
             self.num_epochs = 500
             self.current_epoch = 0
+
+
+            print(self.configuration_manager.patch_size)
+
+            if self.configuration_manager.patch_size[0] > self.configuration_manager.patch_size[1]:
+                self.configuration_manager.patch_size[1]=self.configuration_manager.patch_size[0]
+            elif self.configuration_manager.patch_size[0] < self.configuration_manager.patch_size[1]:
+                self.configuration_manager.patch_size[0]=self.configuration_manager.patch_size[1]
+            print(self.configuration_manager.patch_size)
+
             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,
                                                                    self.dataset_json)
             
@@ -73,14 +86,13 @@ class nnUNetTrainer_unet3p(nnUNetTrainer):
             raise RuntimeError("You have called self.initialize even though the trainer was already initialized. "
                                "That should not happen.")
         
-    
     def _set_batch_size_and_oversample(self):
         if not self.is_ddp:
             # set batch size to what the plan says, leave oversample untouched
 
 
             # 在这里修改batch size
-            self.batch_size = self.configuration_manager.batch_size // 4
+            self.batch_size = self.configuration_manager.batch_size // 2
             print(self.batch_size)
         else:
             # batch size is distributed over DDP workers and we need to change oversample_percent for each worker

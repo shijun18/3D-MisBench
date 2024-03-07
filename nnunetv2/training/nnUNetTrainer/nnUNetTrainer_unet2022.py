@@ -34,7 +34,10 @@ from acvl_utils.cropping_and_padding.padding import pad_nd_image
 from tqdm import tqdm
 
 
-class nnUNetTrainer_unet3p(nnUNetTrainer):
+
+
+
+class nnUNetTrainer_unet2022(nnUNetTrainer):
     def initialize(self):
         if not self.was_initialized:
             ### Some hyperparameters for you to fiddle with
@@ -47,6 +50,16 @@ class nnUNetTrainer_unet3p(nnUNetTrainer):
             self.num_val_iterations_per_epoch = 50
             self.num_epochs = 500
             self.current_epoch = 0
+
+
+            print(self.configuration_manager.patch_size)
+
+            if self.configuration_manager.patch_size[0] > self.configuration_manager.patch_size[1]:
+                self.configuration_manager.patch_size[1]=self.configuration_manager.patch_size[0]
+            elif self.configuration_manager.patch_size[0] < self.configuration_manager.patch_size[1]:
+                self.configuration_manager.patch_size[0]=self.configuration_manager.patch_size[1]
+            print(self.configuration_manager.patch_size)
+
             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,
                                                                    self.dataset_json)
             
@@ -72,55 +85,3 @@ class nnUNetTrainer_unet3p(nnUNetTrainer):
         else:
             raise RuntimeError("You have called self.initialize even though the trainer was already initialized. "
                                "That should not happen.")
-        
-    
-    def _set_batch_size_and_oversample(self):
-        if not self.is_ddp:
-            # set batch size to what the plan says, leave oversample untouched
-
-
-            # 在这里修改batch size
-            self.batch_size = self.configuration_manager.batch_size // 4
-            print(self.batch_size)
-        else:
-            # batch size is distributed over DDP workers and we need to change oversample_percent for each worker
-            batch_sizes = []
-            oversample_percents = []
-
-            world_size = dist.get_world_size()
-            my_rank = dist.get_rank()
-
-            global_batch_size = self.configuration_manager.batch_size
-            assert global_batch_size >= world_size, 'Cannot run DDP if the batch size is smaller than the number of ' \
-                                                    'GPUs... Duh.'
-
-            batch_size_per_GPU = np.ceil(global_batch_size / world_size).astype(int)
-
-            for rank in range(world_size):
-                if (rank + 1) * batch_size_per_GPU > global_batch_size:
-                    batch_size = batch_size_per_GPU - ((rank + 1) * batch_size_per_GPU - global_batch_size)
-                else:
-                    batch_size = batch_size_per_GPU
-
-                batch_sizes.append(batch_size)
-
-                sample_id_low = 0 if len(batch_sizes) == 0 else np.sum(batch_sizes[:-1])
-                sample_id_high = np.sum(batch_sizes)
-
-                if sample_id_high / global_batch_size < (1 - self.oversample_foreground_percent):
-                    oversample_percents.append(0.0)
-                elif sample_id_low / global_batch_size > (1 - self.oversample_foreground_percent):
-                    oversample_percents.append(1.0)
-                else:
-                    percent_covered_by_this_rank = sample_id_high / global_batch_size - sample_id_low / global_batch_size
-                    oversample_percent_here = 1 - (((1 - self.oversample_foreground_percent) -
-                                                    sample_id_low / global_batch_size) / percent_covered_by_this_rank)
-                    oversample_percents.append(oversample_percent_here)
-
-            print("worker", my_rank, "oversample", oversample_percents[my_rank])
-            print("worker", my_rank, "batch_size", batch_sizes[my_rank])
-            # self.print_to_log_file("worker", my_rank, "oversample", oversample_percents[my_rank])
-            # self.print_to_log_file("worker", my_rank, "batch_size", batch_sizes[my_rank])
-
-            self.batch_size = batch_sizes[my_rank]
-            self.oversample_foreground_percent = oversample_percents[my_rank]
