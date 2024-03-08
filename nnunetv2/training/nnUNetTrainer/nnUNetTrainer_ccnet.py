@@ -6,10 +6,34 @@ from dynamic_network_architectures.building_blocks.helper import get_matching_in
 from dynamic_network_architectures.initialization.weight_init import init_last_bn_before_add_to_0
 from nnunetv2.utilities.network_initialization import InitWeights_He
 from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager, PlansManager
-from torch import nn
+from torch import autocast,nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 from nnunetv2.utilities.label_handling.label_handling import convert_labelmap_to_one_hot, determine_num_input_channels
 from nnunetv2.mymodel.mymodel import get_my_network_from_plans
+from nnunetv2.utilities.helpers import empty_cache, dummy_context
+import torch.nn.functional as F
+from nnunetv2.training.loss.dice import get_tp_fp_fn_tn, MemoryEfficientSoftDiceLoss
+from nnunetv2.inference.predict_from_raw_data import nnUNetPredictor
+import multiprocessing
+from nnunetv2.configuration import ANISO_THRESHOLD, default_num_processes
+from batchgenerators.utilities.file_and_folder_operations import join, load_json, isfile, save_json, maybe_mkdir_p
+from nnunetv2.training.dataloading.nnunet_dataset import nnUNetDataset
+from torch import distributed as dist
+from nnunetv2.utilities.file_path_utilities import check_workers_alive_and_busy
+from time import time, sleep
+import numpy as np
+import warnings
+from nnunetv2.inference.export_prediction import export_prediction_from_logits, resample_and_save
+from nnunetv2.paths import nnUNet_preprocessed, nnUNet_results
+from nnunetv2.evaluation.evaluate_predictions import compute_metrics_on_folder
+from nnunetv2.inference.sliding_window_prediction import compute_gaussian
+
+
+from typing import Tuple, Union, List, Optional
+from acvl_utils.cropping_and_padding.padding import pad_nd_image
+from tqdm import tqdm
+
+
 
 
 
@@ -52,3 +76,51 @@ class nnUNetTrainer_ccnet(nnUNetTrainer):
         else:
             raise RuntimeError("You have called self.initialize even though the trainer was already initialized. "
                                "That should not happen.")
+    
+    def _set_batch_size_and_oversample(self):
+        if not self.is_ddp:
+            # set batch size to what the plan says, leave oversample untouched
+            self.batch_size = self.configuration_manager.batch_size // 4
+            print(self.batch_size)
+        else:
+            # batch size is distributed over DDP workers and we need to change oversample_percent for each worker
+            batch_sizes = []
+            oversample_percents = []
+
+            world_size = dist.get_world_size()
+            my_rank = dist.get_rank()
+
+            global_batch_size = self.configuration_manager.batch_size
+            assert global_batch_size >= world_size, 'Cannot run DDP if the batch size is smaller than the number of ' \
+                                                    'GPUs... Duh.'
+
+            batch_size_per_GPU = np.ceil(global_batch_size / world_size).astype(int)
+
+            for rank in range(world_size):
+                if (rank + 1) * batch_size_per_GPU > global_batch_size:
+                    batch_size = batch_size_per_GPU - ((rank + 1) * batch_size_per_GPU - global_batch_size)
+                else:
+                    batch_size = batch_size_per_GPU
+
+                batch_sizes.append(batch_size)
+
+                sample_id_low = 0 if len(batch_sizes) == 0 else np.sum(batch_sizes[:-1])
+                sample_id_high = np.sum(batch_sizes)
+
+                if sample_id_high / global_batch_size < (1 - self.oversample_foreground_percent):
+                    oversample_percents.append(0.0)
+                elif sample_id_low / global_batch_size > (1 - self.oversample_foreground_percent):
+                    oversample_percents.append(1.0)
+                else:
+                    percent_covered_by_this_rank = sample_id_high / global_batch_size - sample_id_low / global_batch_size
+                    oversample_percent_here = 1 - (((1 - self.oversample_foreground_percent) -
+                                                    sample_id_low / global_batch_size) / percent_covered_by_this_rank)
+                    oversample_percents.append(oversample_percent_here)
+
+            print("worker", my_rank, "oversample", oversample_percents[my_rank])
+            print("worker", my_rank, "batch_size", batch_sizes[my_rank])
+            # self.print_to_log_file("worker", my_rank, "oversample", oversample_percents[my_rank])
+            # self.print_to_log_file("worker", my_rank, "batch_size", batch_sizes[my_rank])
+
+            self.batch_size = batch_sizes[my_rank]
+            self.oversample_foreground_percent = oversample_percents[my_rank]

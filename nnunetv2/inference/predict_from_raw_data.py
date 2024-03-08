@@ -123,6 +123,14 @@ class nnUNetPredictor(object):
             network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, model)
 
+        elif trainer_name == 'nnUNetTrainer_CoTr':
+            print("444444444444")
+            model = trainer_name.split("nnUNetTrainer_")[1]
+            network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
+                                                           num_input_channels, model)
+            # 针对ACDC数据集中，pathc_size不能被8整除导致报错：
+            if((configuration_manager.patch_size[0] // 8)!=0 ):
+                configuration_manager.patch_size[0]=configuration_manager.patch_size[0] + configuration_manager.patch_size[0] % 8
 
         else:
             print("2222222222222")

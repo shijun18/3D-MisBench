@@ -118,7 +118,6 @@ def get_my_network_from_plans(plans_manager: PlansManager,
                                 activation=None, upsampling=4, aux_params=None)
         
     elif(model == 'hrnet'):
-        # 显存占用太多
         model = hrnet48(pretrained=False,progress=True,
                         in_channels=num_input_channels,
                         num_classes=label_manager.num_segmentation_heads)
