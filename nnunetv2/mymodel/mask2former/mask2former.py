@@ -36,11 +36,11 @@ def post_process_semantic_segmentation(
         )
 
         # Remove the null class `[..., :-1]`
-        # masks_classes = class_queries_logits[..., :-1]
-        # masks_probs = masks_queries_logits  # [batch_size, num_queries, height, width]
+        masks_classes = class_queries_logits[..., :-1]
+        masks_probs = masks_queries_logits  # [batch_size, num_queries, height, width]
 
-        masks_classes = class_queries_logits.softmax(dim=-1)[..., :-1]
-        masks_probs = masks_queries_logits.softmax(dim=1)  # [batch_size, num_queries, height, width]
+        # masks_classes = class_queries_logits.softmax(dim=-1)[..., :-1]
+        # masks_probs = masks_queries_logits.softmax(dim=1)  # [batch_size, num_queries, height, width]
 
         # Semantic segmentation logits of shape (batch_size, num_classes, height, width)
 
@@ -53,14 +53,14 @@ def post_process_semantic_segmentation(
         return segmentation # change the return value and enable grad mode
 
 
-def Mask2Former(num_classes,in_channels):
+def Mask2Former(num_classes,in_channels,img_size):
 
     
     config = Mask2FormerConfig(
         num_labels=num_classes, 
         
         backbone_config = CONFIG_MAPPING["swin"](
-                image_size=224,
+                image_size=img_size,
                 num_channels=in_channels,
                 patch_size=4,
                 embed_dim=96,
@@ -79,9 +79,9 @@ def Mask2Former(num_classes,in_channels):
     return model
 
 class myMask2Former(nn.Module):
-    def __init__(self,num_classes,in_channels):
+    def __init__(self,num_classes,in_channels,img_size):
         super(myMask2Former, self).__init__()
-        self.main_model = Mask2Former(num_classes,in_channels)
+        self.main_model = Mask2Former(num_classes,in_channels,img_size)
 
     def forward(self,x):
         output = self.main_model(x)
@@ -93,7 +93,7 @@ class myMask2Former(nn.Module):
 
 
 if __name__ == '__main__':
-    model = Mask2Former(4,1)
+    model = myMask2Former(4,1,224)
     # print(model)
     tensor1 = torch.rand([1,1,32,32])
     out = model(tensor1)
