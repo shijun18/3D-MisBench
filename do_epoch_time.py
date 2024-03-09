@@ -1,26 +1,43 @@
 import re
+import numpy as np
 
-log_file = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_deeplabv3p__nnUNetPlans__2d/fold_0/training_log_2024_3_7_19_39_12.txt'
+def find_times(log_file):
 
-# 读取log文件
-with open(log_file, 'r') as file:
-    log_content = file.readlines()
+    with open(log_file, 'r') as file:
+        log_content = file.readlines()
 
-# 初始化一个列表来存储所有的秒数
-epoch_times = []
+    epoch_times = []
 
-# 遍历log文件的每一行
-for line in log_content:
-    # 使用正则表达式查找所有的“Epoch time: ”后面的秒数
-    matches = re.findall(r'Epoch time: (\d+\.\d+) s', line)
-    # 将找到的秒数转换为float并添加到列表中
-    epoch_times.extend([float(match) for match in matches])
+    # 遍历log文件的每一行
+    for line in log_content:
+        # 使用正则表达式查找所有的“Epoch time: ”后面的秒数
+        matches = re.findall(r'Epoch time: (\d+\.\d+) s', line)
+        
+        epoch_times.extend([float(match) for match in matches])
 
-# 确保列表不为空
-if epoch_times:
-    # 计算平均值
-    average_time = sum(epoch_times) / len(epoch_times)
-    # 输出平均值，保留四位小数
-    print(f'平均时间: {average_time:.4f}秒')
-else:
-    print('没有找到匹配的秒数。')
+    if epoch_times:
+        return epoch_times
+        
+        # average_time = sum(epoch_times) / len(epoch_times)
+        
+        # return average_time
+    else:
+        raise('寄！')
+
+if __name__ == '__main__':
+    log_file_0 = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_deeplabv3p__nnUNetPlans__2d/fold_0/training_log_2024_3_7_19_39_12.txt'
+    log_file_1 = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_deeplabv3p__nnUNetPlans__2d/fold_1/training_log_2024_3_7_22_44_21.txt'
+    log_file_2 = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_deeplabv3p__nnUNetPlans__2d/fold_2/training_log_2024_3_8_01_43_51.txt'
+    log_file_3 = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_deeplabv3p__nnUNetPlans__2d/fold_3/training_log_2024_3_8_04_26_59.txt'
+    log_file_4 = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_deeplabv3p__nnUNetPlans__2d/fold_4/training_log_2024_3_8_07_16_23.txt'
+    a_0 = find_times(log_file_0)
+    a_1 = find_times(log_file_1)
+    a_2 = find_times(log_file_2)
+    a_3 = find_times(log_file_3)
+    a_4 = find_times(log_file_4)
+    times = (a_0 + a_1 + a_2 + a_3 + a_4)
+    avg_time = np.mean(times)
+    std_time = np.std(times)
+
+    print(f'平均: {avg_time:.4f}秒')
+    print(f'标准差: {std_time:.4f}秒')
