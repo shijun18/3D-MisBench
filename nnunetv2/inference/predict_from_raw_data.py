@@ -447,6 +447,8 @@ class nnUNetPredictor(object):
             std_time = np.std(total_time)
             print(f'平均: {avg_time:.4f}秒')
             print(f'std: {std_time:.4f}秒')
+            print(f'一共: {len(total_time)}个样本')
+            print(self.trainer_name)
             ret = [i.get()[0] for i in r]
 
         if isinstance(data_iterator, MultiThreadedAugmenter):
