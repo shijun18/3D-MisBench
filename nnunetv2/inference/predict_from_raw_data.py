@@ -446,7 +446,7 @@ class nnUNetPredictor(object):
             avg_time = np.mean(total_time)
             std_time = np.std(total_time)
             print(f'平均: {avg_time:.4f}秒')
-            print(f'平均: {std_time:.4f}秒')
+            print(f'std: {std_time:.4f}秒')
             ret = [i.get()[0] for i in r]
 
         if isinstance(data_iterator, MultiThreadedAugmenter):
