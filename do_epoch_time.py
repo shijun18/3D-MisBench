@@ -25,11 +25,11 @@ def find_times(log_file):
         raise('寄！')
 
 if __name__ == '__main__':
-    log_file_0 = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_deeplabv3p__nnUNetPlans__2d/fold_0/training_log_2024_3_7_19_39_12.txt'
-    log_file_1 = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_deeplabv3p__nnUNetPlans__2d/fold_1/training_log_2024_3_7_22_44_21.txt'
-    log_file_2 = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_deeplabv3p__nnUNetPlans__2d/fold_2/training_log_2024_3_8_01_43_51.txt'
-    log_file_3 = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_deeplabv3p__nnUNetPlans__2d/fold_3/training_log_2024_3_8_04_26_59.txt'
-    log_file_4 = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_deeplabv3p__nnUNetPlans__2d/fold_4/training_log_2024_3_8_07_16_23.txt'
+    log_file_0 = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_dstransunet__nnUNetPlans__2d/fold_0/training_log_2024_3_7_19_40_01.txt'
+    log_file_1 = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_dstransunet__nnUNetPlans__2d/fold_1/training_log_2024_3_8_04_58_42.txt'
+    log_file_2 = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_dstransunet__nnUNetPlans__2d/fold_2/training_log_2024_3_8_14_11_28.txt'
+    log_file_3 = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_dstransunet__nnUNetPlans__2d/fold_3/training_log_2024_3_8_23_17_11.txt'
+    log_file_4 = '/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_results/Dataset027_ACDC/nnUNetTrainer_dstransunet__nnUNetPlans__2d/fold_4/training_log_2024_3_10_15_52_03.txt'
     a_0 = find_times(log_file_0)
     a_1 = find_times(log_file_1)
     a_2 = find_times(log_file_2)
