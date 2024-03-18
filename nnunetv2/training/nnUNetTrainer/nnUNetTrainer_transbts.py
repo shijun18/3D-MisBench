@@ -99,6 +99,9 @@ class nnUNetTrainer_transbts(nnUNetTrainer):
                                                     self.configuration_manager,
                                                     self.num_input_channels,
                                                     model = self.model).to(self.device)
+            # from nnunetv2.torchsummary import summary
+            # summary(self.network,input_size=(1,64,64,64))
+            # exit()
             # compile network for free speedup
             if self._do_i_compile():
                 self.print_to_log_file('Compiling network...')

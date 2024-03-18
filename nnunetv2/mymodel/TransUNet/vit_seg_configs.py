@@ -55,6 +55,7 @@ def get_r50_b16_config():
     config.n_classes = 2
     config.n_skip = 3
     config.activation = 'softmax'
+    config.inch = 1
 
     return config
 
