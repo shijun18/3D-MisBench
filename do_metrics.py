@@ -15,9 +15,9 @@ from batchgenerators.utilities.file_and_folder_operations import *
 
 if __name__ == '__main__':
 
-    seg_path = '/staff/wangbingxun/projects/nnUnet/output/Dataset001/3d_unet'
-    gd_path = "/staff/wangbingxun/projects/nnUnet/nnUNetFrame/DATASET/nnUNet_raw/Dataset100_BrainTumour/labelsTr"
-    save_dir = '/staff/wangbingxun/projects/nnUnet/output/100/3d_fullres'
+    seg_path = '/staff/wangtiantong/nnU-Net/output/ccnet_027'
+    gd_path = "/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_raw/Dataset027_ACDC/labelsTr"
+    save_dir = '/staff/wangtiantong/nnU-Net/output/ccnet_027'
     seg = sorted(os.listdir(seg_path))
 
     dices = []

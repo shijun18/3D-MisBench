@@ -32,6 +32,7 @@ from nnunetv2.utilities.json_export import recursive_fix_for_json_export
 from nnunetv2.utilities.label_handling.label_handling import determine_num_input_channels
 from nnunetv2.utilities.plans_handling.plans_handler import PlansManager, ConfigurationManager
 from nnunetv2.utilities.utils import create_lists_from_splitted_dataset_folder
+import time
 
 
 class nnUNetPredictor(object):
@@ -103,15 +104,25 @@ class nnUNetPredictor(object):
             print("111111111111")
             network = trainer_class.build_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, enable_deep_supervision=False)
-        elif trainer_name == 'nnUNetTrainer_transunet' or trainer_name =='nnUNetTrainer_dstransunet' or trainer_name =='nnUNetTrainer_utnet' or trainer_name =='nnUNetTrainer_swinunet' or trainer_name =='nnUNetTrainer_unet2022'or trainer_name =='nnUNetTrainer_MedT' or trainer_name =='nnUNetTrainer_setr' or trainer_name =='nnUNetTrainer_transbts' or trainer_name =='nnUNetTrainer_segmenter':
+        elif trainer_name == 'nnUNetTrainer_transunet' or trainer_name =='nnUNetTrainer_dstransunet' or trainer_name =='nnUNetTrainer_utnet' or trainer_name =='nnUNetTrainer_swinunet' or trainer_name =='nnUNetTrainer_unet2022'or trainer_name =='nnUNetTrainer_MedT' or trainer_name =='nnUNetTrainer_setr'  or trainer_name =='nnUNetTrainer_segmenter' or trainer_name =='nnUNetTrainer_uctransnet':
             print("333333333333")
             model = trainer_name.split("nnUNetTrainer_")[1]
-            network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
-                                                           num_input_channels, model)
             if configuration_manager.patch_size[0] > configuration_manager.patch_size[1]:
                 configuration_manager.patch_size[1]=configuration_manager.patch_size[0]
             elif configuration_manager.patch_size[0] < configuration_manager.patch_size[1]:
                 configuration_manager.patch_size[0]=configuration_manager.patch_size[1]
+            network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
+                                                           num_input_channels, model)
+
+        elif trainer_name == 'nnUNetTrainer_transbts':
+            print("4444444444444")
+            model = trainer_name.split("nnUNetTrainer_")[1]
+            
+            configuration_manager.patch_size[0]=64
+            configuration_manager.patch_size[1]=64
+            configuration_manager.patch_size[2]=64
+            network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
+                                                           num_input_channels, model)
 
         elif trainer_name == 'nnUNetTrainer_CoTr':
             print("444444444444")
@@ -366,6 +377,7 @@ class nnUNetPredictor(object):
         with multiprocessing.get_context("spawn").Pool(num_processes_segmentation_export) as export_pool:
             worker_list = [i for i in export_pool._pool]
             r = []
+            total_time = []
             for preprocessed in data_iterator:
                 data = preprocessed['data']
                 if isinstance(data, str):
@@ -390,8 +402,14 @@ class nnUNetPredictor(object):
                     # print('sleeping')
                     sleep(0.1)
                     proceed = not check_workers_alive_and_busy(export_pool, worker_list, r, allowed_num_queued=2)
+                
+                start_time = time.time()
 
                 prediction = self.predict_logits_from_preprocessed_data(data).cpu()
+
+                end_time = time.time()
+                elapsed_time = end_time - start_time
+                total_time.append(elapsed_time)
 
                 if ofile is not None:
                     # this needs to go into background processes
@@ -424,6 +442,13 @@ class nnUNetPredictor(object):
                     print(f'done with {os.path.basename(ofile)}')
                 else:
                     print(f'\nDone with image of shape {data.shape}:')
+            print('1111111111111111111111111111')
+            avg_time = np.mean(total_time)
+            std_time = np.std(total_time)
+            print(f'平均: {avg_time:.4f}秒')
+            print(f'std: {std_time:.4f}秒')
+            print(f'一共: {len(total_time)}个样本')
+            print(self.trainer_name)
             ret = [i.get()[0] for i in r]
 
         if isinstance(data_iterator, MultiThreadedAugmenter):

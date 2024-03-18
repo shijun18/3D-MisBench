@@ -110,7 +110,7 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         model = DsTransUnet(128, label_manager.num_segmentation_heads, in_ch=num_input_channels)
     
     elif(model == 'mask2former'):
-        model = myMask2Former(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels)
+        model = myMask2Former(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,img_size=configuration_manager.patch_size[0])
     
     elif(model == 'segmenter'):
         model = get_segmenter(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,patch_size=configuration_manager.patch_size[0])

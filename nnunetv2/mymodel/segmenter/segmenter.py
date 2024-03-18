@@ -155,7 +155,7 @@ def create_decoder(encoder, decoder_cfg):
 
 def get_segmenter(num_classes,in_channels,patch_size):
     cfg = config.load_config()
-    backbone = 'vit_small_patch16_384'
+    backbone = 'vit_large_patch16_384'
     model_cfg = cfg["model"][backbone]
     decoder_cfg = cfg["decoder"]["mask_transformer"]
     model_cfg["image_size"] = (patch_size, patch_size)

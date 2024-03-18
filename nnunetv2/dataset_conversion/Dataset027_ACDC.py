@@ -13,13 +13,13 @@ def make_out_dirs(dataset_id: int, task_name="ACDC"):
     out_train_dir = out_dir / "imagesTr"
     out_labels_dir = out_dir / "labelsTr"
     out_test_dir = out_dir / "imagesTs"
-    out_test_label_dir = out_dir / "labelsTs"
+    # out_test_label_dir = out_dir / "labelsTs"
 
     os.makedirs(out_dir, exist_ok=True)
     os.makedirs(out_train_dir, exist_ok=True)
     os.makedirs(out_labels_dir, exist_ok=True)
     os.makedirs(out_test_dir, exist_ok=True)
-    os.makedirs(out_test_label_dir, exist_ok=True)
+    # os.makedirs(out_test_label_dir, exist_ok=True)
 
     return out_dir, out_train_dir, out_labels_dir, out_test_dir
 
@@ -52,7 +52,7 @@ def copy_files(src_data_folder: Path, train_dir: Path, labels_dir: Path, test_di
     return num_training_cases
 
 
-def convert_acdc(src_data_folder: str, dataset_id=7):
+def convert_acdc(src_data_folder: str, dataset_id=27):
     out_dir, train_dir, labels_dir, test_dir = make_out_dirs(dataset_id=dataset_id)
     num_training_cases = copy_files(Path(src_data_folder), train_dir, labels_dir, test_dir)
 
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         help="The downloaded ACDC dataset dir. Should contain extracted 'training' and 'testing' folders.",
     )
     parser.add_argument(
-        "-d", "--dataset_id", required=False, type=int, default=7, help="nnU-Net Dataset ID, default: 7"
+        "-d", "--dataset_id", required=False, type=int, default=27, help="nnU-Net Dataset ID, default: 27"
     )
     args = parser.parse_args()
     print("Converting...")
