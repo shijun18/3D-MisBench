@@ -61,43 +61,11 @@ def get_my_network_from_plans(plans_manager: PlansManager,
                     conv_builder=DoubleConv3D,
                     n_channels=num_input_channels,
                     n_classes=label_manager.num_segmentation_heads)
-        # convs = ResidualUnit(
-        #     spatial_dims=3,
-        #     in_channels=1,
-        #     out_channels=64,
-            
-        # )
-        # print(convs)
         
-        # model = UNet(
-        #     spatial_dims=3,  # 3D Unet
-        #     in_channels=num_input_channels,
-        #     out_channels= label_manager.num_segmentation_heads,
-        #     channels=(64,128,256,512),
-        #     strides=(2, 2, 2),
-        #     num_res_units=2,
-        #     act= Act.RELU,
-        #     norm=Norm.BATCH
-        # )
-        print(model)
+        # TODO:测试kits数据集上lr = 0.001,epoch =600
         
     elif(model == 'unet3p'):
-        # print("model = unet3p")
-        # conv_op = nn.Conv2d
-        # dropout_op = nn.Dropout2d
-        # norm_op = nn.InstanceNorm2d
-        # norm_op_kwargs = {'eps': 1e-5, 'affine': True}
-        # dropout_op_kwargs = {'p': 0, 'inplace': True}
-        # net_nonlin = nn.LeakyReLU
-        # net_nonlin_kwargs = {'negative_slope': 1e-2, 'inplace': True}
-        # print(len(configuration_manager.pool_op_kernel_sizes))
-        # print(len(configuration_manager.conv_kernel_sizes))
-        # model = Generic_UNet3P(num_input_channels, configuration_manager.UNet_base_num_features, label_manager.num_segmentation_heads,
-        #                             7, 2, 2, conv_op, norm_op, norm_op_kwargs, dropout_op,
-        #                             dropout_op_kwargs,
-        #                             net_nonlin, net_nonlin_kwargs, False, False, lambda x: x, InitWeights_He(1e-2),
-        #                             None, None, False, True, False )
-        # print(model)
+     
         model = UNet_3Plus(num_input_channels, label_manager.num_segmentation_heads)
         # model = unet3p(pretrained=False, progress=False,in_channels=num_input_channels,num_classes=label_manager.num_segmentation_heads)
     elif(model == 'unetr'): 
@@ -127,14 +95,16 @@ def get_my_network_from_plans(plans_manager: PlansManager,
     elif(model == 'transunet'):
     # 需要手动在nnunetv2\mymodel\TransUNet\vit_seg_modeling_resnet_skip.py的128行修改维度，即修改('conv', StdConv2d(4, width, kernel_size=7, stride=2, bias=False, padding=3))
     # 中的第一个数字，改为num_input_channels的大小
+    # 上面的问题已改好
         print(num_input_channels)
         config_vit = CONFIGS_ViT_seg['R50-ViT-B_16']
         config_vit.patches.grid = (int(configuration_manager.patch_size[0]//16), int(configuration_manager.patch_size[0]//16))
         config_vit.n_classes = label_manager.num_segmentation_heads
+        config_vit.inch = num_input_channels
         model = ViT_seg(config_vit, img_size=configuration_manager.patch_size[0], num_classes=label_manager.num_segmentation_heads)
     
     elif(model == 'dstransunet'):
-        # 至少需要40G显存
+        # 至少需要40G显存 解决方案：batch size //4
         print(label_manager.num_segmentation_heads)
         print(num_input_channels)
         model = DsTransUnet(128, label_manager.num_segmentation_heads, in_ch=num_input_channels)
@@ -147,32 +117,36 @@ def get_my_network_from_plans(plans_manager: PlansManager,
 
     elif(model == 'utnet'):
         # 至少需要20G显存 
+        # 在braintumor数据集上尝试lr=0.0001,因为dice先增大后减小 lr=0.0008效果最好 epoch=300
         model = UTNet(in_chan=num_input_channels, num_classes= label_manager.num_segmentation_heads, reduce_size=configuration_manager.patch_size[0]//32)
 
     elif(model == 'swinunet'):
         # 至少需要20G显存
+        # TODO：在kits23数据集上训练改epoch为500,verse,total数据集上训练改epoch为600
         config = SwinUnet_config(in_chans=num_input_channels, num_classes=label_manager.num_segmentation_heads, pic_size=configuration_manager.patch_size[0])
         model = SwinUnet(config, img_size=configuration_manager.patch_size[0], num_classes=label_manager.num_segmentation_heads)
     
     elif(model == 'setr'):
+        # TODO：看改了lr和epoch的效果会不会提升（2,3,4）折 或需要更大的模型 结论：需要调整模型
         model = my_SETR_Naive_S(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,patch_size=configuration_manager.patch_size[0])
 
     elif(model== 'transbts'):
         model = my_TransBTS(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,patch_size=configuration_manager.patch_size[0])
 
     elif(model == 'unet2022'):
-        
+        # braintumor及小规模数据集上300个epoch,kits23，verse，totalseg上用500个epoch
         model = unet2022(model_size='Base',num_input_channels=num_input_channels,num_classes=label_manager.num_segmentation_heads,img_size=configuration_manager.patch_size[0],deep_supervision=False)
     
     elif(model == 'CoTr'):
         # only support 3D image
+        # verse 和 totalseg 数据集上用lr=0.01
         model = ResTranUnet(norm_cfg= 'IN' , activation_cfg= 'LeakyReLU' ,img_size=configuration_manager.patch_size, in_channels=num_input_channels ,num_classes=label_manager.num_segmentation_heads)
 
     elif(model == 'MedT'):
         ## 占用显存过多 70G 解决方案：batch size //4
+        # 大数据集上epoch换成500
         model = MedT(num_classes= label_manager.num_segmentation_heads, img_size = configuration_manager.patch_size[0], imgchan = num_input_channels)
     elif(model == 'TransFuse'):
-        # 建议小数据集上用L, 大数据集上用S
         print("using TransFuse_L")
         model = TransFuse_L(num_classes= label_manager.num_segmentation_heads, img_size=configuration_manager.patch_size[0], in_ch= num_input_channels)
         # model = TransFuse_S(num_classes= label_manager.num_segmentation_heads, img_size=configuration_manager.patch_size[0], in_ch= num_input_channels)
@@ -183,4 +157,3 @@ def get_my_network_from_plans(plans_manager: PlansManager,
 
 ### important:需要 pip install einops==0.3.0 版本必须正确，否则attentionUnet和unetr运行不了
 
-## 模型有大小之分时，该怎么选择？

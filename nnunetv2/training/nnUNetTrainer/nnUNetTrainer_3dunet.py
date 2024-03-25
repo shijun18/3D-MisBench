@@ -24,7 +24,7 @@ class nnUNetTrainer_3dunet(nnUNetTrainer):
             self.oversample_foreground_percent = 0.33
             self.num_iterations_per_epoch = 250
             self.num_val_iterations_per_epoch = 50
-            self.num_epochs = 500
+            self.num_epochs = 600
             self.current_epoch = 0
             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,
                                                                    self.dataset_json)
@@ -33,6 +33,9 @@ class nnUNetTrainer_3dunet(nnUNetTrainer):
                                                     self.configuration_manager,
                                                     self.num_input_channels,
                                                     model = self.model).to(self.device)
+            # from nnunetv2.torchsummary import summary
+            # summary(self.network,input_size=(1,128,128,128))
+            # exit()
             # compile network for free speedup
             if self._do_i_compile():
                 self.print_to_log_file('Compiling network...')

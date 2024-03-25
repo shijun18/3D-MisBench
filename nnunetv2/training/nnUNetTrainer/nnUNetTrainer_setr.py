@@ -76,14 +76,14 @@ class nnUNetTrainer_setr(nnUNetTrainer):
     def initialize(self):
         if not self.was_initialized:
             ### Some hyperparameters for you to fiddle with
-            self.initial_lr = 1e-3
+            self.initial_lr = 1e-2
             # 权重衰减用于控制正则化项的强度，权重衰减可以帮助防止模型过拟合
             self.weight_decay = 3e-5
             # 用于控制正样本（foreground）的过采样比例
             self.oversample_foreground_percent = 0.33
             self.num_iterations_per_epoch = 250
             self.num_val_iterations_per_epoch = 50
-            self.num_epochs = 300
+            self.num_epochs = 500
             self.current_epoch = 0
 
             if self.configuration_manager.patch_size[0] > self.configuration_manager.patch_size[1]:
@@ -98,6 +98,9 @@ class nnUNetTrainer_setr(nnUNetTrainer):
                                                     self.configuration_manager,
                                                     self.num_input_channels,
                                                     model = self.model).to(self.device)
+            # from nnunetv2.torchsummary import summary
+            # summary(self.network,input_size=(1,256,256))
+            # exit()
             # compile network for free speedup
             if self._do_i_compile():
                 self.print_to_log_file('Compiling network...')
