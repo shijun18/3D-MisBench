@@ -104,7 +104,7 @@ class nnUNetPredictor(object):
             print("111111111111")
             network = trainer_class.build_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, enable_deep_supervision=False)
-        elif trainer_name == 'nnUNetTrainer_transunet' or trainer_name =='nnUNetTrainer_dstransunet' or trainer_name =='nnUNetTrainer_utnet' or trainer_name =='nnUNetTrainer_swinunet' or trainer_name =='nnUNetTrainer_unet2022'or trainer_name =='nnUNetTrainer_MedT' or trainer_name =='nnUNetTrainer_setr'  or trainer_name =='nnUNetTrainer_segmenter' or trainer_name =='nnUNetTrainer_uctransnet':
+        elif trainer_name == 'nnUNetTrainer_transunet' or trainer_name =='nnUNetTrainer_dstransunet' or trainer_name =='nnUNetTrainer_utnet' or trainer_name =='nnUNetTrainer_swinunet' or trainer_name =='nnUNetTrainer_unet2022'or trainer_name =='nnUNetTrainer_MedT' or trainer_name =='nnUNetTrainer_setr'  or trainer_name =='nnUNetTrainer_segmenter' or trainer_name =='nnUNetTrainer_uctransnet' or trainer_name =='nnUNetTrainer_TransFuse':
             print("333333333333")
             model = trainer_name.split("nnUNetTrainer_")[1]
             if configuration_manager.patch_size[0] > configuration_manager.patch_size[1]:
