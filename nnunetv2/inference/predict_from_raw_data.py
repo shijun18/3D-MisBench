@@ -148,6 +148,7 @@ class nnUNetPredictor(object):
         self.plans_manager = plans_manager
         self.configuration_manager = configuration_manager
         self.list_of_parameters = parameters
+        self.network_ori = network
         self.network = network
         self.dataset_json = dataset_json
         self.trainer_name = trainer_name
@@ -456,12 +457,15 @@ class nnUNetPredictor(object):
             print(f'std: {std_time:.4f}秒')
             print(f'一共: {len(total_time)}个样本')
             print(self.trainer_name)
-            from thop import profile
-            from thop import clever_format
-            flops, _= profile(network, inputs=(input_size, ))
-            flops = clever_format([flops], "%.3f")
-            print(f'计算量: {flops}')
             ret = [i.get()[0] for i in r]
+        
+        from thop import profile
+        from thop import clever_format
+        self.network_ori = self.network_ori.to(self.device)
+        self.input_size = self.input_size.to(self.device)
+        flops, _= profile(self.network_ori, inputs=(self.input_size, ))
+        flops = clever_format([flops], "%.3f")
+        print(f'计算量: {flops}')
 
         if isinstance(data_iterator, MultiThreadedAugmenter):
             data_iterator._finish()
