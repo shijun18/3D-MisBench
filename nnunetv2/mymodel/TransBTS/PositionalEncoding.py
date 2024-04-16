@@ -30,6 +30,6 @@ class LearnedPositionalEncoding(nn.Module):
         self.position_embeddings = nn.Parameter(torch.zeros(1, seq_length, embedding_dim)) #8x
 
     def forward(self, x, position_ids=None):
-        print(self.max_position_embeddings,self.embedding_dim,self.seq_length)
+        # print(self.max_position_embeddings,self.embedding_dim,self.seq_length)
         position_embeddings = self.position_embeddings
         return x + position_embeddings

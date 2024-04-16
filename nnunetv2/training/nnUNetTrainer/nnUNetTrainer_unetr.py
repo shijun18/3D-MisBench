@@ -17,7 +17,7 @@ class nnUNetTrainer_unetr(nnUNetTrainer):
     def initialize(self):
         if not self.was_initialized:
             ### Some hyperparameters for you to fiddle with
-            self.initial_lr = 1e-2
+            self.initial_lr = 1e-3
             # 权重衰减用于控制正则化项的强度，权重衰减可以帮助防止模型过拟合
             self.weight_decay = 3e-5
             # 用于控制正样本（foreground）的过采样比例
@@ -26,6 +26,13 @@ class nnUNetTrainer_unetr(nnUNetTrainer):
             self.num_val_iterations_per_epoch = 50
             self.num_epochs = 500
             self.current_epoch = 0
+
+            # 针对ACDC数据集中，pathc_size不能被16整除导致报错：
+            print(self.configuration_manager.patch_size[0])
+            if((self.configuration_manager.patch_size[0] // 16)!=0 ):
+                self.configuration_manager.patch_size[0]=self.configuration_manager.patch_size[0] + (16 - self.configuration_manager.patch_size[0] % 16)
+            print(self.configuration_manager.patch_size)
+
             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,
                                                                    self.dataset_json)
             
