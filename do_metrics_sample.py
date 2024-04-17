@@ -20,9 +20,9 @@ from batchgenerators.utilities.file_and_folder_operations import *
 
 if __name__ == '__main__':
 
-    seg_path = '/staff/wangtiantong/nnU-Net/output/segmenter_small_027'
+    seg_path = '/staff/wangtiantong/nnU-Net/output/CoTr_027'
     gd_path = "/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_raw/Dataset027_ACDC/labelsTr"
-    save_dir = '/staff/wangtiantong/nnU-Net/output/segmenter_small_027'
+    save_dir = '/staff/wangtiantong/nnU-Net/output/CoTr_027'
     seg = sorted(os.listdir(seg_path))
 
     # dices = []

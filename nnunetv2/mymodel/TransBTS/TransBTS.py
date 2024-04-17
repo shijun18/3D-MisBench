@@ -36,7 +36,8 @@ class TransformerBTS(nn.Module):
 
         self.num_patches = int((img_dim // patch_dim) ** 3)
         self.seq_length = self.num_patches
-        self.flatten_dim = 128 * num_channels
+        # self.flatten_dim = 128 * num_channels
+        self.flatten_dim = 128
 
         self.linear_encoding = nn.Linear(self.flatten_dim, self.embedding_dim)
         if positional_encoding_type == "learned":
@@ -87,8 +88,9 @@ class TransformerBTS(nn.Module):
             x = x.view(x.size(0), -1, self.embedding_dim)
 
         else:
-            print(x.size())
+            # print(x.size())
             x1_1, x2_1, x3_1, x  = self.Unet(x)
+            # print(x.size())
             x = self.bn(x)
             x = self.relu(x)
             x = (
@@ -99,9 +101,10 @@ class TransformerBTS(nn.Module):
             )
             x = x.view(x.size(0), x.size(1), -1, 8)
             x = x.permute(0, 2, 3, 1).contiguous()
+            # print(x.size())
             x = x.view(x.size(0), -1, self.flatten_dim)
+            # print(x.size())
             x = self.linear_encoding(x)
-        print("before_pe",x.size())
         x = self.position_encoding(x)
         x = self.pe_dropout(x)
 
@@ -199,7 +202,7 @@ class BTS(TransformerBTS):
         self.DeUp2 = DeUp_Cat(in_channels=self.embedding_dim//16, out_channels=self.embedding_dim//32)
         self.DeBlock2 = DeBlock(in_channels=self.embedding_dim//32)
 
-        self.endconv = nn.Conv3d(self.embedding_dim // 32, 4, kernel_size=1)
+        self.endconv = nn.Conv3d(self.embedding_dim // 32, num_classes, kernel_size=1)
 
 
     def decode(self, x1_1, x2_1, x3_1, x, intmd_x, intmd_layers=[1, 2, 3, 4]):

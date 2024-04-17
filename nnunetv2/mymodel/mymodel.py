@@ -128,6 +128,7 @@ def get_my_network_from_plans(plans_manager: PlansManager,
     
     elif(model == 'setr'):
         # TODO：看改了lr和epoch的效果会不会提升（2,3,4）折 或需要更大的模型 结论：需要调整模型
+        # Huge模型效果居然比Small差?
         model = my_SETR_Naive_S(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,patch_size=configuration_manager.patch_size[0])
 
     elif(model== 'transbts'):
