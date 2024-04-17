@@ -1,0 +1,1 @@
+nnUNetv2_predict -i /staff/wangbingxun/projects/nnUnet/nnUNetFrame/DATASET/nnUNet_raw/Dataset100_BrainTumour/imagesTs -o /staff/wangbingxun/projects/nnUnet/output/Dataset001/3d_unet_ori -d 100 -c 3d_fullres -tr nnUNetTrainer_3dunet
