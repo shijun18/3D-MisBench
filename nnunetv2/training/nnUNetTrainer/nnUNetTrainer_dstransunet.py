@@ -47,6 +47,7 @@ class nnUNetTrainer_dstransunet(nnUNetTrainer):
             self.num_epochs = 500
             self.current_epoch = 0
             self.batch_size = 2
+            
 
             print(self.configuration_manager.patch_size)
 

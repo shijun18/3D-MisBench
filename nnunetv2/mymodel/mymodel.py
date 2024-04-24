@@ -119,12 +119,12 @@ def get_my_network_from_plans(plans_manager: PlansManager,
 
     elif(model == 'utnet'):
         # 至少需要20G显存 
-        # 在braintumor数据集上尝试lr=0.0001,因为dice先增大后减小 lr=0.0008效果最好 epoch=300
         model = UTNet(in_chan=num_input_channels, num_classes= label_manager.num_segmentation_heads, reduce_size=configuration_manager.patch_size[0]//32)
 
     elif(model == 'swinunet'):
         # 至少需要20G显存
         # TODO：在kits23数据集上训练改epoch为500,verse,total数据集上训练改epoch为600
+        # TODO: 需要调模型
         config = SwinUnet_config(in_chans=num_input_channels, num_classes=label_manager.num_segmentation_heads, pic_size=configuration_manager.patch_size[0])
         model = SwinUnet(config, img_size=configuration_manager.patch_size[0], num_classes=label_manager.num_segmentation_heads)
     
@@ -134,6 +134,7 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         model = my_SETR_Naive_S(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,patch_size=configuration_manager.patch_size[0])
 
     elif(model== 'transbts'):
+        # 需要修改代码
         model = my_TransBTS(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,patch_size=configuration_manager.patch_size[0])
 
     elif(model == 'unet2022'):
@@ -155,6 +156,7 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         # model = TransFuse_S(num_classes= label_manager.num_segmentation_heads, img_size=configuration_manager.patch_size[0], in_ch= num_input_channels)
 
     elif(model == 'uctransnet'):
+        # 需要修改代码
         model = get_my_UCTransNet(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,img_size = configuration_manager.patch_size[0])
 
     elif(model == 'umamba'):

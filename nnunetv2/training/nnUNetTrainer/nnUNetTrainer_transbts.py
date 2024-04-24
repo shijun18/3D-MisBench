@@ -66,7 +66,6 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from nnunetv2.mymodel.mymodel import get_my_network_from_plans  # 增加了mymodel功能
 
 from nnunetv2.mynets.get_Unetplusplus_network_from_plans import get_Unetplusplus_network_from_plans
-from transformers.models.mask2former.image_processing_mask2former import Mask2FormerImageProcessor 
 import torch.nn.functional as F
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
