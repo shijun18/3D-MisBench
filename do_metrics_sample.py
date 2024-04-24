@@ -20,10 +20,11 @@ from batchgenerators.utilities.file_and_folder_operations import *
 
 if __name__ == '__main__':
 
-    seg_path = '/staff/wangtiantong/nnU-Net/output/CoTr_027'
-    gd_path = "/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_raw/Dataset027_ACDC/labelsTr"
-    save_dir = '/staff/wangtiantong/nnU-Net/output/CoTr_027'
+    seg_path = '/staff/wangbingxun/projects/nnUnet/output/Dataset004/unet2d'
+    gd_path = "/staff/wangbingxun/projects/nnUnet/nnUNetFrame/DATASET/nnUNet_raw/Dataset400_TotalSegmentatorV2/labelsTr"
+    save_dir = '/staff/wangbingxun/projects/nnUnet/output/Dataset004/unet2d'
     seg = sorted(os.listdir(seg_path))
+    seg = seg[:20]
 
     # dices = []
     # hd95s = []

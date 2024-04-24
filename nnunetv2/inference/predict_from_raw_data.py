@@ -119,9 +119,9 @@ class nnUNetPredictor(object):
             print("4444444444444")
             model = trainer_name.split("nnUNetTrainer_")[1]
             
-            configuration_manager.patch_size[0]=64
-            configuration_manager.patch_size[1]=64
-            configuration_manager.patch_size[2]=64
+            configuration_manager.patch_size[0]=128
+            configuration_manager.patch_size[1]=128
+            configuration_manager.patch_size[2]=128
             network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, model)
 
@@ -129,7 +129,7 @@ class nnUNetPredictor(object):
             print("444444444444")
             model = trainer_name.split("nnUNetTrainer_")[1]
             # 针对ACDC数据集中，pathc_size不能被8整除导致报错：
-            if((configuration_manager.patch_size[0] // 8)!=0 ):
+            if((configuration_manager.patch_size[0] % 8)!=0 ):
                 configuration_manager.patch_size[0]=configuration_manager.patch_size[0] +(8 - configuration_manager.patch_size[0] % 8)
             network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, model)
@@ -138,7 +138,7 @@ class nnUNetPredictor(object):
             print("5555555555555")
             model = trainer_name.split("nnUNetTrainer_")[1]
             # 针对ACDC数据集中，pathc_size不能被16整除导致报错：
-            if((configuration_manager.patch_size[0] // 16)!=0 ):
+            if((configuration_manager.patch_size[0] % 16)!=0 ):
                 configuration_manager.patch_size[0]=configuration_manager.patch_size[0] + (16 - configuration_manager.patch_size[0] % 16)
             network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, model)
@@ -468,14 +468,14 @@ class nnUNetPredictor(object):
             print(self.trainer_name)
             ret = [i.get()[0] for i in r]
         
-        from thop import profile
-        from thop import clever_format
-        # 一开始报错是因为input和model不在一个设备上
-        self.network_ori = self.network_ori.to(self.device)
-        self.input_size = self.input_size.to(self.device)
-        flops, _= profile(self.network_ori, inputs=(self.input_size, ))
-        flops = clever_format([flops], "%.3f")
-        print(f'计算量: {flops}')
+        # from thop import profile
+        # from thop import clever_format
+        # # 一开始报错是因为input和model不在一个设备上
+        # self.network_ori = self.network_ori.to(self.device)
+        # self.input_size = self.input_size.to(self.device)
+        # flops, _= profile(self.network_ori, inputs=(self.input_size, ))
+        # flops = clever_format([flops], "%.3f")
+        # print(f'计算量: {flops}')
 
         if isinstance(data_iterator, MultiThreadedAugmenter):
             data_iterator._finish()
