@@ -22,7 +22,7 @@ class Channel_Embeddings(nn.Module):
         img_size = _pair(img_size)
         patch_size = _pair(patchsize)
         n_patches = (img_size[0] // patch_size[0]) * (img_size[1] // patch_size[1])
-        print(n_patches,img_size,patch_size)
+        # print(n_patches,img_size,patch_size)
 
         self.patch_embeddings = Conv2d(in_channels=in_channels,
                                        out_channels=in_channels,
@@ -32,15 +32,15 @@ class Channel_Embeddings(nn.Module):
         self.dropout = Dropout(config.transformer["embeddings_dropout_rate"])
 
     def forward(self, x):
-        print(x.size())
+        # print(x.size())
         if x is None:
             return None
         x = self.patch_embeddings(x)  # (B, hidden. n_patches^(1/2), n_patches^(1/2))
-        print(x.size())
+        # print(x.size())
         x = x.flatten(2)
-        print(x.size())
+        # print(x.size())
         x = x.transpose(-1, -2)  # (B, n_patches, hidden)
-        print(x.size())
+        # print(x.size())
         embeddings = x + self.position_embeddings
         embeddings = self.dropout(embeddings)
         return embeddings

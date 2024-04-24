@@ -11,6 +11,7 @@ import monai
 import torch
 import json
 from batchgenerators.utilities.file_and_folder_operations import *
+import math
 
 
 '''
@@ -20,9 +21,9 @@ from batchgenerators.utilities.file_and_folder_operations import *
 
 if __name__ == '__main__':
 
-    seg_path = '/staff/wangtiantong/nnU-Net/output/CoTr_027'
+    seg_path = '/staff/wangtiantong/nnU-Net/output/setr_027'
     gd_path = "/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_raw/Dataset027_ACDC/labelsTr"
-    save_dir = '/staff/wangtiantong/nnU-Net/output/CoTr_027'
+    save_dir = '/staff/wangtiantong/nnU-Net/output/setr_027'
     seg = sorted(os.listdir(seg_path))
 
     # dices = []
@@ -183,35 +184,40 @@ if __name__ == '__main__':
 
     print("############Now compute mean metrics and std####################")
     # 平均Dice和标准差：
-    foreground_mean_dice_list = np.nan_to_num(foreground_mean_dice_list, nan=0.0, posinf=0.0, neginf=0.0)
+    # foreground_mean_dice_list = np.nan_to_num(foreground_mean_dice_list, nan=0.0, posinf=0.0, neginf=0.0)
+    foreground_mean_dice_list = [x for x in foreground_mean_dice_list if math.isfinite(x)]
     mean_dice_out = np.mean(foreground_mean_dice_list)
     std_dice_out = np.std(foreground_mean_dice_list)
     print('mean_dice:', mean_dice_out)
     print('std:',std_dice_out)
 
     # 平均iou和标准差：
-    foreground_mean_iou_list = np.nan_to_num(foreground_mean_iou_list, nan=0.0, posinf=0.0, neginf=0.0)
+    # foreground_mean_iou_list = np.nan_to_num(foreground_mean_iou_list, nan=0.0, posinf=0.0, neginf=0.0)
+    foreground_mean_iou_list = [x for x in foreground_mean_iou_list if math.isfinite(x)]
     mean_iou_out = np.mean(foreground_mean_iou_list)
     std_iou_out = np.std(foreground_mean_iou_list)
     print('mean_iou:', mean_iou_out)
     print('std:',std_iou_out)
 
     # 平均nsd：
-    foreground_mean_nsd_list = np.nan_to_num(foreground_mean_nsd_list, nan=0.0, posinf=0.0, neginf=0.0)
+    # foreground_mean_nsd_list = np.nan_to_num(foreground_mean_nsd_list, nan=0.0, posinf=0.0, neginf=0.0) 
+    foreground_mean_nsd_list = [x for x in foreground_mean_nsd_list if math.isfinite(x)]
     mean_nsd_out = np.mean(foreground_mean_nsd_list)
     std_nsd_out = np.std(foreground_mean_nsd_list)
     print('mean_nsd:', mean_nsd_out)
     print('std:',std_nsd_out)
 
     # 平均asd：
-    foreground_mean_asd_list = np.nan_to_num(foreground_mean_asd_list, nan=0.0, posinf=0.0, neginf=0.0)
+    # foreground_mean_asd_list = np.nan_to_num(foreground_mean_asd_list, nan=0.0, posinf=0.0, neginf=0.0)
+    foreground_mean_asd_list = [x for x in foreground_mean_asd_list if math.isfinite(x)]
     mean_asd_out = np.mean(foreground_mean_asd_list)
     std_asd_out = np.std(foreground_mean_asd_list)
     print('mean_asd:', mean_asd_out)
     print('std:',std_asd_out)
 
     # 平均hd95：
-    foreground_mean_hd95_list = np.nan_to_num(foreground_mean_hd95_list, nan=0.0, posinf=0.0, neginf=0.0)
+    # foreground_mean_hd95_list = np.nan_to_num(foreground_mean_hd95_list, nan=0.0, posinf=0.0, neginf=0.0)
+    foreground_mean_hd95_list = [x for x in foreground_mean_hd95_list if math.isfinite(x)]
     mean_hd95_out = np.mean(foreground_mean_hd95_list)
     std_hd95_out = np.std(foreground_mean_hd95_list)
     print('mean_hd95:', mean_hd95_out)
@@ -236,5 +242,5 @@ if __name__ == '__main__':
 
 
     # 保存为 CSV 文件
-    df.to_csv(os.path.join(save_dir, 'metrics_sample.csv'))
+    df.to_csv(os.path.join(save_dir, 'metrics_sample_new.csv'))
 

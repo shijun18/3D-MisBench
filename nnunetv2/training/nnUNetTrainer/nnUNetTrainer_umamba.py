@@ -13,7 +13,7 @@ from nnunetv2.mymodel.mymodel import get_my_network_from_plans
 
 
 
-class nnUNetTrainer_3dunet(nnUNetTrainer):
+class nnUNetTrainer_umamba(nnUNetTrainer):
     def initialize(self):
         if not self.was_initialized:
             ### Some hyperparameters for you to fiddle with

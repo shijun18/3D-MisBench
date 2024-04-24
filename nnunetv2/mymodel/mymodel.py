@@ -32,6 +32,8 @@ from nnunetv2.mymodel.TransFuse.TransFuse import TransFuse_S,TransFuse_L
 from nnunetv2.mymodel.SETR.SETR import my_SETR_Naive_S
 from nnunetv2.mymodel.TransBTS.TransBTS import my_TransBTS
 from nnunetv2.mymodel.UCTransNet.UCTransNet import get_my_UCTransNet
+from nnunetv2.mymodel.umamba.umamba_bot_3d import get_umamba_bot_3d_from_plans
+from nnunetv2.mymodel.vmunet.vmunet import VMUNet
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -154,6 +156,13 @@ def get_my_network_from_plans(plans_manager: PlansManager,
 
     elif(model == 'uctransnet'):
         model = get_my_UCTransNet(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,img_size = configuration_manager.patch_size[0])
+
+    elif(model == 'umamba'):
+        model = get_umamba_bot_3d_from_plans(plans_manager, dataset_json, configuration_manager,
+                                          num_input_channels,deep_supervision=False)
+        
+    elif(model == 'vmunet'):
+        model = VMUNet(input_channels=num_input_channels, num_classes=label_manager.num_segmentation_heads,)
     return model
 
 ### important:需要 pip install einops==0.3.0 版本必须正确，否则attentionUnet和unetr运行不了
