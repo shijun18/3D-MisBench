@@ -25,7 +25,6 @@ if __name__ == '__main__':
     gd_path = "/staff/wangbingxun/projects/nnUnet/nnUNetFrame/DATASET/nnUNet_raw/Dataset400_TotalSegmentatorV2/labelsTr"
     save_dir = '/staff/wangbingxun/projects/nnUnet/output/Dataset004/unet2d'
     seg = sorted(os.listdir(seg_path))
-    seg = seg[:20]
 
     # dices = []
     # hd95s = []
@@ -132,7 +131,9 @@ if __name__ == '__main__':
         print(nsd_score)
         # nsd_score[0]就是一个num_classes维的列表，存放着每一个类别的nsd，因此直接对这个列表的除去第一项求平均，得到所谓的“这个样本的nsd”
         # nsds.append(np.around(nsd_score[0], decimals=4))
-        foreground_mean_nsd = np.mean(nsd_score[0][1:])
+        nsd_score = nsd_score[0][1:]
+        nsd_score = [x for x in nsd_score if math.isfinite(x)]
+        foreground_mean_nsd = np.mean(nsd_score)
         foreground_mean_nsd_list.append(np.around(foreground_mean_nsd,decimals=4))
         
 
@@ -144,7 +145,9 @@ if __name__ == '__main__':
         asd_score = monai.metrics.compute_average_surface_distance(seg_tensors[i], gd_tensors[i], include_background=True, symmetric=False, distance_metric='euclidean', spacing=None).tolist()
         print(asd_score)
         # asds.append(np.around(asd_score[0], decimals=4))
-        foreground_mean_asd = np.mean(asd_score[0][1:])
+        asd_score = asd_score[0][1:]
+        asd_score = [x for x in asd_score if math.isfinite(x)]
+        foreground_mean_asd = np.mean(asd_score)
         foreground_mean_asd_list.append(np.around(foreground_mean_asd,decimals=4))
 
     foreground_mean_hd95_list = []
@@ -156,7 +159,9 @@ if __name__ == '__main__':
                                                                 percentile=95, directed=False, spacing=None).tolist()
         print(hd95_score)
         # hd95s.append(np.around(hd95_score[0], decimals=4))
-        foreground_mean_hd95 = np.mean(hd95_score[0][1:])
+        hd95_score = hd95_score[0][1:]
+        hd95_score = [x for x in hd95_score if math.isfinite(x)]
+        foreground_mean_hd95 = np.mean(hd95_score)
         foreground_mean_hd95_list.append(np.around(foreground_mean_hd95,decimals=4))
 
     foreground_mean_dice_list = []
@@ -168,7 +173,9 @@ if __name__ == '__main__':
         dice_score = dice_score.tolist()
         print(dice_score)
         # dices.append(np.around(dice_score[0], decimals=4))
-        foreground_mean_dice = np.mean(dice_score[0][1:])
+        dice_score = dice_score[0][1:]
+        dice_score = [x for x in dice_score if math.isfinite(x)]
+        foreground_mean_dice = np.mean(dice_score)
         foreground_mean_dice_list.append(np.around(foreground_mean_dice,decimals=4))
 
     foreground_mean_iou_list = []
@@ -179,7 +186,9 @@ if __name__ == '__main__':
         iou_score = monai.metrics.compute_iou(seg_tensors[i], gd_tensors[i], include_background=True, ignore_empty=True).tolist()
         print(iou_score)
         # ious.append(np.around(iou_score[0], decimals=4))
-        foreground_mean_iou = np.mean(iou_score[0][1:])
+        iou_score = iou_score[0][1:]
+        iou_score = [x for x in iou_score if math.isfinite(x)]
+        foreground_mean_iou = np.mean(iou_score)
         foreground_mean_iou_list.append(np.around(foreground_mean_iou,decimals=4))
 
 

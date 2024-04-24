@@ -21,7 +21,6 @@ if __name__ == '__main__':
     seg = sorted(os.listdir(seg_path))
     # print(seg)
     # print(len(seg))
-    seg = seg[:50]
 
     dices = []
     hd95s = []
