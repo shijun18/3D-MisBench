@@ -21,9 +21,9 @@ import math
 
 if __name__ == '__main__':
 
-    seg_path = '/staff/wangtiantong/nnU-Net/output/setr_027'
-    gd_path = "/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_raw/Dataset027_ACDC/labelsTr"
-    save_dir = '/staff/wangtiantong/nnU-Net/output/setr_027'
+    seg_path = '/staff/wangtiantong/nnU-Net/output/swinunet_002'
+    gd_path = "/staff/wangtiantong/nnU-Net/nnUNetFrame/dataset/nnUNet_raw/Dataset002_SegRap2023/labelsTr"
+    save_dir = '/staff/wangtiantong/nnU-Net/output/swinunet_002'
     seg = sorted(os.listdir(seg_path))
 
     # dices = []
