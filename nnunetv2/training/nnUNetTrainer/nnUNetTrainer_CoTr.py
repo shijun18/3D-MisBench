@@ -28,7 +28,7 @@ class nnUNetTrainer_CoTr(nnUNetTrainer):
             self.current_epoch = 0
 
             # 针对ACDC数据集中，pathc_size不能被8整除导致报错：
-            if((self.configuration_manager.patch_size[0] // 8)!=0 ):
+            if((self.configuration_manager.patch_size[0] % 8)!=0 ):
                 self.configuration_manager.patch_size[0]=self.configuration_manager.patch_size[0] +(8 - self.configuration_manager.patch_size[0] % 8)
             print(self.configuration_manager.patch_size)
             # print(self.configuration_manager.patch_size)
