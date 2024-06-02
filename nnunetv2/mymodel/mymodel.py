@@ -34,6 +34,8 @@ from nnunetv2.mymodel.TransBTS.TransBTS import my_TransBTS
 from nnunetv2.mymodel.UCTransNet.UCTransNet import get_my_UCTransNet
 from nnunetv2.mymodel.umamba.umamba_bot_3d import get_umamba_bot_3d_from_plans
 from nnunetv2.mymodel.vmunet.vmunet import VMUNet
+from nnunetv2.mymodel.segmamba.segmamba import SegMamba
+from nnunetv2.mymodel.lightmunet.lightmunet import LightMUNet
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -163,9 +165,31 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         model = get_umamba_bot_3d_from_plans(plans_manager, dataset_json, configuration_manager,
                                           num_input_channels,deep_supervision=False)
         
+        
     elif(model == 'vmunet'):
         model = VMUNet(input_channels=num_input_channels, num_classes=label_manager.num_segmentation_heads,)
+
+    elif(model == 'segmamba'):
+        model = SegMamba(in_chans=num_input_channels, out_chans=label_manager.num_segmentation_heads,)
+
+    elif(model == 'lightmunet'):
+        model = LightMUNet(in_channels=num_input_channels, out_channels=label_manager.num_segmentation_heads,)
     return model
 
 ### important:需要 pip install einops==0.3.0 版本必须正确，否则attentionUnet和unetr运行不了
 
+if __name__ == '__main__':
+    from thop import clever_format
+    model = SegMamba(in_chans=1, out_chans=3,).cuda()
+    from thop import profile
+    data = torch.rand(1, 1, 128, 128, 128).cuda()
+    model_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Total Model Parameters = {model_total_params:,}\n")
+
+    _, params = profile(model, inputs=(data, ))
+    print(params)
+
+
+    flops, _= profile(model, inputs=(data, ))
+    flops = clever_format([flops], "%.3f")
+    print(flops)

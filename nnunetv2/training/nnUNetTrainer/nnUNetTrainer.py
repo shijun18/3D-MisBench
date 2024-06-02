@@ -1288,6 +1288,7 @@ class nnUNetTrainer(object):
 
     def run_training(self):
         self.on_train_start()
+        # print_model(self.network)
         # epoch循环
         for epoch in range(self.current_epoch, self.num_epochs):
             self.on_epoch_start()
@@ -1309,3 +1310,21 @@ class nnUNetTrainer(object):
             self.on_epoch_end()
 
         self.on_train_end()
+
+# def print_model(network):
+#     from thop import clever_format
+    
+#     from thop import profile
+
+#     model = network.cuda()
+#     data = torch.rand(1, 1, 128, 128).cuda()
+#     model_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+#     print(f"Total Model Parameters = {model_total_params:,}\n")
+
+#     _, params = profile(model, inputs=(data, ))
+#     print(params)
+
+
+#     flops, _= profile(model, inputs=(data, ))
+#     flops = clever_format([flops], "%.3f")
+#     print(flops)
