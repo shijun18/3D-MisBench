@@ -1,84 +1,62 @@
 import SimpleITK as sitk
+import itk
 from batchgenerators.utilities.file_and_folder_operations import *
 from pathlib import Path
 from typing import Iterable, List, Optional, Type, Union, Tuple
 PathType = Union[str, Path, Iterable[str], Iterable[Path]]
+import ants
+import numpy as np
+import nibabel as nib
+import os
+import sys
 
 
-def print_metric(optimizer):
-    print('Iteration: {0}, Metric value: {1}'.format(int(optimizer.GetOptimizerIteration()), optimizer.GetMetricValue()))
 
 def img_register(path_to_ct_image:PathType,path_to_mri_image:PathType,case_id,src):
-    # 加载CT和MRI图像
-    ct_image = sitk.ReadImage(path_to_ct_image)
-    mri_image = sitk.ReadImage(path_to_mri_image)
 
-    print("CT图像数据类型：", ct_image.GetPixelIDTypeAsString())
-    print("MRI图像数据类型：", mri_image.GetPixelIDTypeAsString())
-    print("CT图像维度：", ct_image.GetDimension())
-    print("MRI图像维度：", mri_image.GetDimension())
+    print(case_id)
+        # Load MRI and CT images
+    mri_image = ants.image_read(path_to_mri_image)
+    ct_image = ants.image_read(path_to_ct_image)
 
-    mri_image = sitk.Cast(mri_image, sitk.sitkFloat32)
-    ct_image = sitk.Cast(ct_image, sitk.sitkFloat32)
+    # Perform registration
+    registration = ants.registration(
+        fixed=ct_image,
+        moving=mri_image,
+        type_of_transform='ElasticSyN',
+    )
+    print("register starting:")
+    # Apply the transformation to the MRI image
+    registered_mri = ants.apply_transforms(
+        fixed=ct_image,
+        moving=mri_image,
+        transformlist=registration['fwdtransforms']
+    )
 
-    # 刚性配准
-    # 创建刚性配准器
-    rigid_registration = sitk.ImageRegistrationMethod()
-
-    # 设置刚性配准方法和度量标准
-    rigid_registration.SetMetricAsMeanSquares()  # 使用均方差作为度量标准
-    rigid_registration.SetOptimizerAsGradientDescent(learningRate=0.1, numberOfIterations=100, convergenceMinimumValue=1e-6, convergenceWindowSize=10)  # 使用梯度下降优化算法
-    rigid_registration.SetInterpolator(sitk.sitkLinear)  # 线性插值器
-
-    # 设置优化器尺度
-    rigid_registration.SetOptimizerScalesFromPhysicalShift()
-
-    # 设置初始变换
-    initial_transform = sitk.CenteredTransformInitializer(ct_image, mri_image, sitk.Euler3DTransform(), 
-                                                      sitk.CenteredTransformInitializerFilter.GEOMETRY)
-    rigid_registration.SetInitialTransform(initial_transform)
-    
-    print("111111111111")
-    # 输出metric
-    rigid_registration.AddCommand(sitk.sitkIterationEvent, print(rigid_registration.GetOptimizerIteration()))
+    # Save the registered MRI image
+    ants.image_write(registered_mri, join(src,case_id,case_id + '_IMG_MR_T1_Registered2.nii.gz'))
 
 
-    # 执行刚性配准
-    rigid_transform = rigid_registration.Execute(ct_image, mri_image)
+    print("adjusting\n")
+    # Load the registered MRI image using NiBabel
+    nib_registered_mri = nib.load(join(src,case_id,case_id + '_IMG_MR_T1_Registered2.nii.gz'))
 
-    # 应用刚性配准变换到MRI图像
-    rigid_registered_mri_image = sitk.Resample(mri_image, ct_image, rigid_transform, sitk.sitkLinear, 0.0, mri_image.GetPixelID())
-    print("2222222222222222")
-    print("MMR图像数据类型", rigid_registered_mri_image.GetPixelIDTypeAsString())
-    print("MMR图像大小", rigid_registered_mri_image.GetSize())
-    
-    # 非刚性配准(B样条)
-    # 创建非刚性配准器
-    bspline_registration = sitk.ImageRegistrationMethod()
 
-    # 设置非刚性配准方法和度量标准
-    bspline_registration.SetMetricAsMattesMutualInformation()  # 使用互信息作为度量标准
-    bspline_registration.SetOptimizerAsLBFGSB(gradientConvergenceTolerance=1e-5, numberOfIterations=20)  # 使用L-BFGS-B算法
-    bspline_registration.SetInterpolator(sitk.sitkLinear)  # 线性插值器
-    print("33333333333333333")
-    # 设置初始变换
-    bspline_transform = sitk.BSplineTransformInitializer(ct_image, [6, 6, 6], order=3)
-    bspline_registration.SetInitialTransform(bspline_transform)
+    # Get the minimum and maximum intensity values from the original MRI image
+    min_intensity = mri_image.min()
+    max_intensity = mri_image.max()
 
-    # 输出metric
-    #bspline_registration.AddCommand(sitk.sitkIterationEvent, print_metric(bspline_registration))
-    print("444444444444444444")
-    # 执行非刚性配准
-    final_transform = bspline_registration.Execute(ct_image, rigid_registered_mri_image)
+    # Adjust the intensity values of the registered MRI image
+    nib_registered_mri_data = nib_registered_mri.get_fdata()
+    nib_registered_mri_data[nib_registered_mri_data < min_intensity] = min_intensity
+    nib_registered_mri_data[nib_registered_mri_data > max_intensity] = max_intensity
 
-    print("55555555555555555555555555")
+    # Create a new NiBabel Nifti1Image from the adjusted data
+    adjusted_image = nib.Nifti1Image(nib_registered_mri_data, affine=nib_registered_mri.affine)
 
-    # 应用非刚性配准变换到MRI图像
-    registered_mri_image = sitk.Resample(rigid_registered_mri_image, ct_image, final_transform, sitk.sitkLinear, 0.0, mri_image.GetPixelID())
-   
-    
-    
-    sitk.WriteImage(registered_mri_image, join(src,case_id,case_id + '_IMG_MR_T1_Registered1.nii.gz'))
+    # Save the adjusted image using NiBabel
+    nib.save(adjusted_image, join(src,case_id,case_id + '_IMG_MR_T1_Adjusted.nii.gz'))
+    print("done!")
 
 if __name__ == "__main__":
 

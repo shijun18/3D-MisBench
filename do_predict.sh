@@ -1,2 +1,3 @@
 nnUNetv2_predict -i /staff/wangbingxun/projects/nnUnet/nnUNetFrame/DATASET/nnUNet_raw/Dataset100_BrainTumour/imagesTs -o /staff/wangbingxun/projects/nnUnet/output/Dataset001/hrnet -d 100 -c 2d -tr nnUNetTrainer_hrnet
 # nnUNetv2_predict -i /staff/wangbingxun/projects/nnUnet/nnUNetFrame/DATASET/nnUNet_raw/Dataset500_KiTS23/imagesTs -o /staff/wangbingxun/projects/nnUnet/output/Dataset005/attentionunet -d 500 -c 2d -tr nnUNetTrainer_attentionunet
+# nnUNetv2_predict -i /staff/wangbingxun/projects/nnUnet/nnUNetFrame/DATASET/nnUNet_raw/Dataset400_TotalSegmentatorV2/imagesTs -o /staff/wangbingxun/projects/nnUnet/output/Dataset004/Transfuse -d 401 -c 2d -tr nnUNetTrainer_TransFuse

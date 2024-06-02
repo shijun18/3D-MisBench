@@ -33,19 +33,19 @@ def convert_HaN_Seg(src_data_folder: str, dataset_id=3):
 
     case_ids = subdirs(src_data_folder, prefix='case_', join=False)
     patients_train = sorted(case_ids)
-    patients_test = random.sample(patients_train, 7)
+    patients_test = random.sample(patients_train, 8)
     patients_train = [f for f in patients_train if f not in patients_test]
     num_training_cases = len(patients_train)
 
     for c in patients_train:
         shutil.copy(join(src_data_folder, c, 'Seg.nii.gz'), join(labelstr, c + '.nii.gz'))
         shutil.copy(join(src_data_folder, c, c + '_IMG_CT.nii.gz'), join(imagestr, c + '_0000.nii.gz'))
-        shutil.copy(join(src_data_folder, c, c + '_IMG_MR_T1.nii.gz'), join(imagestr, c + '_0001.nii.gz'))
+        shutil.copy(join(src_data_folder, c, c + '_IMG_MR_T1_Adjusted.nii.gz'), join(imagestr, c + '_0001.nii.gz'))
     
     for c in patients_test:
         shutil.copy(join(src_data_folder, c, 'Seg.nii.gz'), join(labelstr, c + '.nii.gz'))
         shutil.copy(join(src_data_folder, c, c + '_IMG_CT.nii.gz'), join(imagests, c + '_0000.nii.gz'))
-        shutil.copy(join(src_data_folder, c, c + '_IMG_MR_T1.nii.gz'), join(imagests, c + '_0001.nii.gz'))
+        shutil.copy(join(src_data_folder, c, c + '_IMG_MR_T1_Adjusted.nii.gz'), join(imagests, c + '_0001.nii.gz'))
 
     generate_dataset_json(
                           out_base, {0: "CT",
