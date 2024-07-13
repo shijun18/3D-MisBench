@@ -1,0 +1,9 @@
+{
+    "model_path": "/staff/wangtiantong/nnU-Net/nnUNet_new/nnUnet_reconstructinon/nnunetv2/mymodel/model_test.py",
+    "model_create_function_name": "TestFuction",
+    "model_create_function_interface": "TestFuction(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,criterion=None, pretrained_model=None, recurrence=0)",
+    "model_name": "testmodel",
+    "batch_size": 8,
+    "patch_size": [256,256],
+    "epochs": 900
+}
