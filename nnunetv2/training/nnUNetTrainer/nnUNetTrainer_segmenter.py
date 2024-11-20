@@ -125,7 +125,7 @@ class nnUNetTrainer_segmenter(nnUNetTrainer):
 
 
             # 在这里修改batch size
-            self.batch_size = self.configuration_manager.batch_size // 2
+            self.batch_size = self.configuration_manager.batch_size 
             print(self.batch_size)
         else:
             # batch size is distributed over DDP workers and we need to change oversample_percent for each worker

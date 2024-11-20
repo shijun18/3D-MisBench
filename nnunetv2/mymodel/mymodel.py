@@ -36,6 +36,13 @@ from nnunetv2.mymodel.umamba.umamba_bot_3d import get_umamba_bot_3d_from_plans
 from nnunetv2.mymodel.vmunet.vmunet import VMUNet
 from nnunetv2.mymodel.segmamba.segmamba import SegMamba
 from nnunetv2.mymodel.lightmunet.lightmunet import LightMUNet
+from nnunetv2.mymodel.kan.Ukan import UKAN
+from nnunetv2.mymodel.xLSTMUNet.UxLSTMEnc_3d import get_uxlstm_enc_3d_from_plans
+from nnunetv2.mymodel.umamba.ukan_bot_3d import get_ukan_bot_3d_from_plans
+from nnunetv2.mymodel.umamba.ukan_enc_3d import get_ukan_enc_3d_from_plans
+from nnunetv2.mymodel.umamba.umamba_enc_3d import get_umamba_enc_3d_from_plans
+from nnunetv2.mymodel.umamba.ukan_bot_fastkan import get_ukan_bot_fastkan_from_plans
+from nnunetv2.mymodel.CAMS.CAMS import CAMS
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
@@ -136,7 +143,7 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         model = my_SETR_Naive_S(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,patch_size=configuration_manager.patch_size[0])
 
     elif(model== 'transbts'):
-        # 需要修改代码
+        # The patch size here represents image size
         model = my_TransBTS(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,patch_size=configuration_manager.patch_size[0])
 
     elif(model == 'unet2022'):
@@ -174,6 +181,30 @@ def get_my_network_from_plans(plans_manager: PlansManager,
 
     elif(model == 'lightmunet'):
         model = LightMUNet(in_channels=num_input_channels, out_channels=label_manager.num_segmentation_heads,)
+
+    elif(model == 'ukan'):
+        model = UKAN(in_chans=num_input_channels, num_classes=label_manager.num_segmentation_heads,img_size = configuration_manager.patch_size[0])
+    
+    elif(model == 'UxLSTMEnc'):
+        model = get_uxlstm_enc_3d_from_plans(plans_manager, dataset_json, configuration_manager,
+                                          num_input_channels,deep_supervision=False)
+    elif(model == 'ukan_bot'):
+        model = get_ukan_bot_3d_from_plans(plans_manager, dataset_json, configuration_manager,
+                                          num_input_channels,deep_supervision=False)
+        
+    elif(model == 'ukan_enc'):
+        model = get_ukan_enc_3d_from_plans(plans_manager, dataset_json, configuration_manager,
+                                          num_input_channels,deep_supervision=False)
+    
+    elif(model == 'umamba_enc'):
+        model = get_umamba_enc_3d_from_plans(plans_manager, dataset_json, configuration_manager,
+                                          num_input_channels,deep_supervision=False)
+    elif(model == 'ukan_bot_fastkan'):
+        model = get_ukan_bot_fastkan_from_plans(plans_manager, dataset_json, configuration_manager,
+                                          num_input_channels,deep_supervision=False)
+    elif(model == 'cams'):
+        model = CAMS(in_channels=num_input_channels, out_channels=label_manager.num_segmentation_heads,img_size=configuration_manager.patch_size[0], base_channel=64)
+
     return model
 
 ### important:需要 pip install einops==0.3.0 版本必须正确，否则attentionUnet和unetr运行不了

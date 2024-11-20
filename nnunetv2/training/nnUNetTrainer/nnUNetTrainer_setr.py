@@ -75,16 +75,16 @@ class nnUNetTrainer_setr(nnUNetTrainer):
     def initialize(self):
         if not self.was_initialized:
             ### Some hyperparameters for you to fiddle with
-            self.initial_lr = 1e-2
+            self.initial_lr = 1e-4
             # 权重衰减用于控制正则化项的强度，权重衰减可以帮助防止模型过拟合
             self.weight_decay = 3e-5
             # 用于控制正样本（foreground）的过采样比例
             self.oversample_foreground_percent = 0.33
             self.num_iterations_per_epoch = 250
             self.num_val_iterations_per_epoch = 50
-            self.num_epochs = 500
+            self.num_epochs = 1500
             self.current_epoch = 0
-            self.batch_size = 4
+            self.batch_size = self.batch_size // 2
 
             if self.configuration_manager.patch_size[0] > self.configuration_manager.patch_size[1]:
                 self.configuration_manager.patch_size[1]=self.configuration_manager.patch_size[0]

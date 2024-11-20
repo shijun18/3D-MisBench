@@ -41,11 +41,12 @@ class nnUNetTrainer_hrnet(nnUNetTrainer):
             self.initial_lr = 1e-3
             # 权重衰减用于控制正则化项的强度，权重衰减可以帮助防止模型过拟合
             self.weight_decay = 3e-5
+            #self.weight_decay = 1e-4
             # 用于控制正样本（foreground）的过采样比例
             self.oversample_foreground_percent = 0.33
             self.num_iterations_per_epoch = 250
             self.num_val_iterations_per_epoch = 50
-            self.num_epochs = 1000
+            self.num_epochs = 2000
             self.current_epoch = 0
             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,
                                                                    self.dataset_json)
@@ -80,7 +81,7 @@ class nnUNetTrainer_hrnet(nnUNetTrainer):
     def _set_batch_size_and_oversample(self):
         if not self.is_ddp:
             # set batch size to what the plan says, leave oversample untouched
-            self.batch_size = self.configuration_manager.batch_size // 4
+            self.batch_size = self.configuration_manager.batch_size 
             print(self.batch_size)
         else:
             # batch size is distributed over DDP workers and we need to change oversample_percent for each worker

@@ -21,16 +21,16 @@ import math
 
 if __name__ == '__main__':
 
-    seg_path = '/staff/wangbingxun/projects/nnUnet/output/Dataset005/unetr'
-    gd_path = "/staff/wangbingxun/projects/nnUnet/nnUNetFrame/DATASET/nnUNet_raw/Dataset500_KiTS23/labelsTr"
-    save_dir = '/staff/wangbingxun/projects/nnUnet/output/Dataset005/unetr'
+    seg_path = '/staff/wangbingxun/projects/nnUnet/output/Dataset003/unet3p'
+    gd_path = "/staff/wangbingxun/projects/nnUnet/nnUNetFrame/DATASET/nnUNet_raw/Dataset300_HaN_Seg/labelsTr"
+    save_dir = '/staff/wangbingxun/projects/nnUnet/output/Dataset003/unet3p'
     seg = sorted(os.listdir(seg_path))
 
-    # dices = []
-    # hd95s = []
-    # asds = []
-    # nsds = []
-    # ious = []
+    dices = []
+    hd95s = []
+    asds = []
+    nsds = []
+    ious = []
     case_name = []
 
     with open(join(seg_path,'dataset.json'), 'r') as f:
@@ -130,7 +130,7 @@ if __name__ == '__main__':
         nsd_score = monai.metrics.compute_surface_dice(seg_tensors[i], gd_tensors[i], thresholds_list1, include_background=True, distance_metric='euclidean', spacing=None, use_subvoxels=False).tolist()
         print(nsd_score)
         # nsd_score[0]就是一个num_classes维的列表，存放着每一个类别的nsd，因此直接对这个列表的除去第一项求平均，得到所谓的“这个样本的nsd”
-        # nsds.append(np.around(nsd_score[0], decimals=4))
+        nsds.append(np.around(nsd_score[0][1:], decimals=4))
         nsd_score = nsd_score[0][1:]
         nsd_score = [x for x in nsd_score if math.isfinite(x)]
         foreground_mean_nsd = np.mean(nsd_score)
@@ -144,7 +144,7 @@ if __name__ == '__main__':
         print(i)
         asd_score = monai.metrics.compute_average_surface_distance(seg_tensors[i], gd_tensors[i], include_background=True, symmetric=False, distance_metric='euclidean', spacing=None).tolist()
         print(asd_score)
-        # asds.append(np.around(asd_score[0], decimals=4))
+        asds.append(np.around(asd_score[0][1:], decimals=4))
         asd_score = asd_score[0][1:]
         asd_score = [x for x in asd_score if math.isfinite(x)]
         foreground_mean_asd = np.mean(asd_score)
@@ -158,7 +158,7 @@ if __name__ == '__main__':
         hd95_score = monai.metrics.compute_hausdorff_distance(seg_tensors[i], gd_tensors[i], include_background=True, distance_metric='euclidean', 
                                                                 percentile=95, directed=False, spacing=None).tolist()
         print(hd95_score)
-        # hd95s.append(np.around(hd95_score[0], decimals=4))
+        hd95s.append(np.around(hd95_score[0][1:], decimals=4))
         hd95_score = hd95_score[0][1:]
         hd95_score = [x for x in hd95_score if math.isfinite(x)]
         foreground_mean_hd95 = np.mean(hd95_score)
@@ -172,7 +172,7 @@ if __name__ == '__main__':
         dice_score= monai.metrics.DiceMetric(include_background=True, reduction="mean", get_not_nans=False, ignore_empty=True, num_classes=None)(seg_tensors[i],gd_tensors[i] )
         dice_score = dice_score.tolist()
         print(dice_score)
-        # dices.append(np.around(dice_score[0], decimals=4))
+        dices.append(np.around(dice_score[0][1:], decimals=4))
         dice_score = dice_score[0][1:]
         dice_score = [x for x in dice_score if math.isfinite(x)]
         foreground_mean_dice = np.mean(dice_score)
@@ -185,7 +185,7 @@ if __name__ == '__main__':
         print(i)
         iou_score = monai.metrics.compute_iou(seg_tensors[i], gd_tensors[i], include_background=True, ignore_empty=True).tolist()
         print(iou_score)
-        # ious.append(np.around(iou_score[0], decimals=4))
+        ious.append(np.around(iou_score[0][1:], decimals=4))
         iou_score = iou_score[0][1:]
         iou_score = [x for x in iou_score if math.isfinite(x)]
         foreground_mean_iou = np.mean(iou_score)
@@ -236,10 +236,10 @@ if __name__ == '__main__':
 
 
     # # 创建字典数据
-    # data = {'dice': dices, 'iou': ious, 'NSD': nsds, 'ASD': asds, 'HD95': hd95s}
+    data = {'dice': dices, 'iou': ious, 'NSD': nsds, 'ASD': asds, 'HD95': hd95s}
 
     # # 创建 DataFrame
-    # df = pd.DataFrame(data=data, columns=['dice', 'iou', 'NSD', 'ASD', 'HD95'], index=case_name)
+    df_1 = pd.DataFrame(data=data, columns=['dice', 'iou', 'NSD', 'ASD', 'HD95'], index=case_name)
 
     df_mean = pd.DataFrame(data={'dice': mean_dice_out, 'iou': mean_iou_out, 'NSD': mean_nsd_out, 'ASD': mean_asd_out, 'HD95': mean_hd95_out},
                            columns=['dice', 'iou', 'NSD', 'ASD', 'HD95'],index = ['mean'] * 1)
@@ -249,8 +249,11 @@ if __name__ == '__main__':
     
     # df = pd.concat([df, df_mean,df_std])
     df = pd.concat([df_mean,df_std])
+    
 
 
     # 保存为 CSV 文件
     df.to_csv(os.path.join(save_dir, 'metrics_sample_new.csv'))
+    df_1.to_csv(os.path.join(save_dir, 'metrics_sample.csv'))
+    
 

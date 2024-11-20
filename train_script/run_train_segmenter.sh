@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-for i in {0..4}
+for i in {1..4}
 do
-    CUDA_VISIBLE_DEVICES=1 nnUNetv2_train 027 2d $i --model segmenter
+    CUDA_VISIBLE_DEVICES=5 nnUNetv2_train 600 2d $i --model segmenter
 done
