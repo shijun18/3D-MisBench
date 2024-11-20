@@ -54,23 +54,23 @@ class MambaLayer(nn.Module):
         self.channel_token = channel_token ## whether to use channel as tokens
 
     def forward_patch_token(self, x):
-        B, d_model = x.shape[:2]                #B, d_model, H, W, D =(B, 320, 8, 8, 8)
+        B, d_model = x.shape[:2]
         assert d_model == self.dim
         n_tokens = x.shape[2:].numel()
         img_dims = x.shape[2:]
-        x_flat = x.reshape(B, d_model, n_tokens).transpose(-1, -2)    ## x_flat = (B, n_tokens, d_model)=(B, 512, 320)
+        x_flat = x.reshape(B, d_model, n_tokens).transpose(-1, -2)
         x_norm = self.norm(x_flat)
         x_mamba = self.mamba(x_norm)
-        out = x_mamba.transpose(-1, -2).reshape(B, d_model, *img_dims)     #(B, d_model, H, W, D)=(B, 320, 8, 8, 8)
+        out = x_mamba.transpose(-1, -2).reshape(B, d_model, *img_dims)
 
         return out
 
     def forward_channel_token(self, x):
-        B, n_tokens = x.shape[:2]      
+        B, n_tokens = x.shape[:2]
         d_model = x.shape[2:].numel()
         assert d_model == self.dim, f"d_model: {d_model}, self.dim: {self.dim}"
         img_dims = x.shape[2:]
-        x_flat = x.flatten(2)                                           ## x_flat = (B, n_tokens, d_model)=(B, 320, 64)
+        x_flat = x.flatten(2)
         assert x_flat.shape[2] == d_model, f"x_flat.shape[2]: {x_flat.shape[2]}, d_model: {d_model}"
         x_norm = self.norm(x_flat)
         x_mamba = self.mamba(x_norm)
