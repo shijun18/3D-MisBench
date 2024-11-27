@@ -238,7 +238,7 @@ class Final_PatchExpand2D(nn.Module):
 
         return x
 
-
+# 实际上实现了论文图中下方layer norm之后的所有功能
 class SS2D(nn.Module):
     def __init__(
         self,
@@ -367,6 +367,7 @@ class SS2D(nn.Module):
         D._no_weight_decay = True
         return D
 
+    # real SS2D
     def forward_corev0(self, x: torch.Tensor):
         self.selective_scan = selective_scan_fn
         

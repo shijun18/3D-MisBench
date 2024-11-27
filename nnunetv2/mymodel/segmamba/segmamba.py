@@ -16,7 +16,7 @@ from functools import partial
 
 from monai.networks.blocks.dynunet_block import UnetOutBlock
 from monai.networks.blocks.unetr_block import UnetrBasicBlock, UnetrUpBlock
-from mamba_ssm import Mamba
+from nnunetv2.mymodel.segmamba.mamba_simple import Mamba
 import torch.nn.functional as F 
 
 class LayerNorm(nn.Module):
@@ -56,8 +56,8 @@ class MambaLayer(nn.Module):
                 d_state=d_state,  # SSM state expansion factor
                 d_conv=d_conv,    # Local convolution width
                 expand=expand,    # Block expansion factor
-                # bimamba_type="v3",
-                # nslices=num_slices,
+                bimamba_type="v3",
+                nslices=num_slices,
         )
     
     def forward(self, x):
@@ -67,7 +67,7 @@ class MambaLayer(nn.Module):
         img_dims = x.shape[2:]
         x_flat = x.reshape(B, C, n_tokens).transpose(-1, -2)
         x_norm = self.norm(x_flat)
-        x_mamba = self.mamba(x_norm)
+        x_mamba = self.mamba(x_norm) # （B,L,C）
 
         out = x_mamba.transpose(-1, -2).reshape(B, C, *img_dims)
         return out
@@ -141,7 +141,7 @@ class MambaEncoder(nn.Module):
         for i in range(3):
             downsample_layer = nn.Sequential(
                 # LayerNorm(dims[i], eps=1e-6, data_format="channels_first"),
-                nn.InstanceNorm3d(dims[i]),
+                nn.InstanceNorm3d(dims[i]),                                           #论文中是layer norm，代码中却是instance norm
                 nn.Conv3d(dims[i], dims[i+1], kernel_size=2, stride=2),
             )
             self.downsample_layers.append(downsample_layer)
@@ -165,7 +165,7 @@ class MambaEncoder(nn.Module):
 
         self.mlps = nn.ModuleList()
         for i_layer in range(4):
-            layer = nn.InstanceNorm3d(dims[i_layer])
+            layer = nn.InstanceNorm3d(dims[i_layer])              #论文中是layer norm，代码中却是instance norm
             layer_name = f'norm{i_layer}'
             self.add_module(layer_name, layer)
             self.mlps.append(MlpChannel(dims[i_layer], 2 * dims[i_layer]))

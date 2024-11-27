@@ -186,4 +186,6 @@ class UNet(nn.Module):
         if self.dropout_flag:
             x = self.dropout(x)
         logits = self.outc(x)
+
+        #print("1")
         return logits

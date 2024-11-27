@@ -37,7 +37,7 @@ class nnUNetTrainer_dstransunet(nnUNetTrainer):
     def initialize(self):
         if not self.was_initialized:
             ### Some hyperparameters for you to fiddle with
-            self.initial_lr = 3e-3
+            self.initial_lr = 1e-3
             # 权重衰减用于控制正则化项的强度，权重衰减可以帮助防止模型过拟合
             self.weight_decay = 3e-5
             # 用于控制正样本（foreground）的过采样比例
@@ -201,7 +201,7 @@ class nnUNetTrainer_dstransunet(nnUNetTrainer):
     def _set_batch_size_and_oversample(self):
         if not self.is_ddp:
             # set batch size to what the plan says, leave oversample untouched
-            self.batch_size = self.configuration_manager.batch_size // 4
+            self.batch_size = self.configuration_manager.batch_size 
             print(self.batch_size)
         else:
             # batch size is distributed over DDP workers and we need to change oversample_percent for each worker

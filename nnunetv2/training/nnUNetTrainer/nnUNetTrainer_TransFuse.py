@@ -48,7 +48,7 @@ class nnUNetTrainer_TransFuse(nnUNetTrainer):
             self.oversample_foreground_percent = 0.33
             self.num_iterations_per_epoch = 250
             self.num_val_iterations_per_epoch = 50
-            self.num_epochs = 500
+            self.num_epochs = 1000
             self.current_epoch = 0
             self.batch_size = 2
 
@@ -95,7 +95,7 @@ class nnUNetTrainer_TransFuse(nnUNetTrainer):
 
 
             # 在这里修改batch size
-            self.batch_size = self.configuration_manager.batch_size // 2
+            self.batch_size = self.configuration_manager.batch_size 
             print(self.batch_size)
         else:
             # batch size is distributed over DDP workers and we need to change oversample_percent for each worker

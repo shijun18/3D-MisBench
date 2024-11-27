@@ -413,6 +413,7 @@ class UMambaBot(nn.Module):
                                                                 f"as we have resolution stages. here: {n_stages} " \
                                                                 f"stages, so it should have {n_stages - 1} entries. " \
                                                                 f"n_conv_per_stage_decoder: {n_conv_per_stage_decoder}"
+        #encoder使用传统的unetresencoder,没有使用mamba模块
         self.encoder = UNetResEncoder(
             input_channels,
             n_stages,
@@ -429,13 +430,12 @@ class UMambaBot(nn.Module):
             return_skips=True,
             stem_channels=stem_channels
         )
-
         self.mamba_layer = MambaLayer(dim = features_per_stage[-1])
 
         self.decoder = UNetResDecoder(self.encoder, num_classes, n_conv_per_stage_decoder, deep_supervision)
 
     def forward(self, x):
-        skips = self.encoder(x)
+        skips = self.encoder(x) # encoder不同层输出的特征图
         skips[-1] = self.mamba_layer(skips[-1])
         return self.decoder(skips)
 
