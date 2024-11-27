@@ -33,6 +33,7 @@ class nnUNetTrainer_3dunet(nnUNetTrainer):
                                                     self.configuration_manager,
                                                     self.num_input_channels,
                                                     model = self.model).to(self.device)
+            print(self.configuration_manager.patch_size)
             # from nnunetv2.torchsummary import summary
             # summary(self.network,input_size=(1,128,128,128))
             # exit()

@@ -5,6 +5,11 @@ from nnunetv2.utilities.ddp_allgather import AllGatherGrad
 from torch import nn
 
 
+def count_nan(tensor):
+    # 使用 torch 的 isnan 函数计算 NaN 的数量
+    nan_count = torch.isnan(tensor).sum().item()
+    return nan_count
+
 class SoftDiceLoss(nn.Module):
     def __init__(self, apply_nonlin: Callable = None, batch_dice: bool = False, do_bg: bool = True, smooth: float = 1.,
                  ddp: bool = True, clip_tp: float = None):
@@ -21,7 +26,7 @@ class SoftDiceLoss(nn.Module):
 
     def forward(self, x, y, loss_mask=None):
         shp_x = x.shape
-
+        print(count_nan(x))
         if self.batch_dice:
             axes = [0] + list(range(2, len(shp_x)))
         else:
