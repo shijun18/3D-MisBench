@@ -510,6 +510,7 @@ def get_umamba_enc_3d_from_plans(
     kwargs = {
         'UMambaEnc': {
             'input_size': configuration_manager.patch_size,
+            # 'input_size': [32, 32, 32],
             'conv_bias': True,
             'norm_op': get_matching_instancenorm(conv_op),
             'norm_op_kwargs': {'eps': 1e-5, 'affine': True},

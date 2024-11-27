@@ -224,13 +224,21 @@ class nnUNetTrainer(object):
             #############################################################################################################
             # 想要借助nnUnet项目来训练自己的模型（不是unet），关键就在于把self.network替换，并把损失函数也替换了，否则会和深监督模块捆绑。
             ##############################################################################################################
-
+            self.batch_size  = 3
             # wtt修改了这部分
             if self.model == 'unet':
                 self.network = self.build_network_architecture(self.plans_manager, self.dataset_json,
                                                             self.configuration_manager,
                                                             self.num_input_channels,
                                                             enable_deep_supervision=False).to(self.device)
+                # model = self.network.cuda()
+                # data = torch.rand(1, 1, 64, 64, 64).cuda()
+                # from thop import clever_format
+                # from thop import profile
+                # flops, _= profile(model, inputs=(data, ))
+                # flops = clever_format([flops], "%.3f")
+                # print(flops)
+                # exit()
             else:
                 self.network = get_my_network_from_plans(self.plans_manager, self.dataset_json,
                                                      self.configuration_manager,
@@ -909,6 +917,7 @@ class nnUNetTrainer(object):
         self.logger.log('lrs', self.optimizer.param_groups[0]['lr'], self.current_epoch)
 
     def train_step(self, batch: dict) -> dict:
+        # data is data for batch
         data = batch['data']
         target = batch['target']
 
@@ -930,6 +939,7 @@ class nnUNetTrainer(object):
             l = self.loss(output, target)
         # 如果存在梯度缩放器：
         if self.grad_scaler is not None:
+            # 通过GradScaler的scale()函数度loss进行缩放，缩放后再进行反向
             self.grad_scaler.scale(l).backward()
             self.grad_scaler.unscale_(self.optimizer)
             torch.nn.utils.clip_grad_norm_(self.network.parameters(), 12)

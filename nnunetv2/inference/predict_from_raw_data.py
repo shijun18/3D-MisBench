@@ -115,7 +115,7 @@ class nnUNetPredictor(object):
             network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, model)
 
-        elif trainer_name == 'nnUNetTrainer_transbts':
+        elif trainer_name == 'nnUNetTrainer_transbts' or trainer_name == 'nnUNetTrainer_segmamba':
             print("4444444444444")
             model = trainer_name.split("nnUNetTrainer_")[1]
             

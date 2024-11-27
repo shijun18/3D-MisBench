@@ -26,6 +26,7 @@ class nnUNetTrainer_unetr(nnUNetTrainer):
             self.num_val_iterations_per_epoch = 50
             self.num_epochs = 800
             self.current_epoch = 0
+            self.batch_size = 2
 
             # 针对ACDC数据集中，pathc_size不能被16整除导致报错：
             print(self.configuration_manager.patch_size[0])

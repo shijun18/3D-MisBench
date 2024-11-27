@@ -113,6 +113,14 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         print(label_manager.num_segmentation_heads)
         print(num_input_channels)
         model = DsTransUnet(128, label_manager.num_segmentation_heads, in_ch=num_input_channels)
+        # model = DsTransUnet(128, label_manager.num_segmentation_heads, in_ch=num_input_channels).cuda()
+        # data = torch.rand(1, 1, 32, 32).cuda()
+        # from thop import clever_format
+        # from thop import profile
+        # flops, _= profile(model, inputs=(data, ))
+        # flops = clever_format([flops], "%.3f")
+        # print(flops)
+        # exit()
     
     elif(model == 'mask2former'):
         model = myMask2Former(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,img_size=configuration_manager.patch_size[0])
@@ -169,6 +177,21 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         ## enc
         model = get_umamba_enc_3d_from_plans(plans_manager, dataset_json, configuration_manager,
                                           num_input_channels,deep_supervision=False)
+        # from thop import clever_format
+        # model = get_umamba_enc_3d_from_plans(plans_manager, dataset_json, configuration_manager,
+        #                                   num_input_channels,deep_supervision=False).cuda()
+        # from thop import profile
+        # data = torch.rand(1, 1, 32, 32, 32).cuda()
+        # model_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+        # print(f"Total Model Parameters = {model_total_params:,}\n")
+
+        # _, params = profile(model, inputs=(data, ))
+        # print(params)
+
+
+        # flops, _= profile(model, inputs=(data, ))
+        # flops = clever_format([flops], "%.3f")
+        # print(flops)
         
         
     elif(model == 'vmunet'):
@@ -184,17 +207,22 @@ def get_my_network_from_plans(plans_manager: PlansManager,
 ### important:需要 pip install einops==0.3.0 版本必须正确，否则attentionUnet和unetr运行不了
 
 if __name__ == '__main__':
+    
+    model = smp.UnetPlusPlus(encoder_name='resnet34',
+                                encoder_depth=5, encoder_weights=None, 
+                                decoder_use_batchnorm=True, decoder_channels=(256, 128, 64, 32, 16), 
+                                decoder_attention_type=None, in_channels=1, classes=3,
+                                ).cuda()
+    
+    data = torch.rand(1, 1, 32, 32).cuda()
+    # model_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    # print(f"Total Model Parameters = {model_total_params:,}\n")
+
+    # _, params = profile(model, inputs=(data, ))
+    # print(params)
+
     from thop import clever_format
-    model = SegMamba(in_chans=1, out_chans=3,).cuda()
     from thop import profile
-    data = torch.rand(1, 1, 128, 128, 128).cuda()
-    model_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"Total Model Parameters = {model_total_params:,}\n")
-
-    _, params = profile(model, inputs=(data, ))
-    print(params)
-
-
     flops, _= profile(model, inputs=(data, ))
     flops = clever_format([flops], "%.3f")
     print(flops)

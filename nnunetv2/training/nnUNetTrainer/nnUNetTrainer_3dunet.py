@@ -26,6 +26,7 @@ class nnUNetTrainer_3dunet(nnUNetTrainer):
             self.num_val_iterations_per_epoch = 50
             self.num_epochs = 800
             self.current_epoch = 0
+            self.batch_size = 2
             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,
                                                                    self.dataset_json)
             

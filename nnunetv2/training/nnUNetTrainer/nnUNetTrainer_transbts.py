@@ -84,7 +84,7 @@ class nnUNetTrainer_transbts(nnUNetTrainer):
             self.num_val_iterations_per_epoch = 50
             self.num_epochs = 800
             self.current_epoch = 0
-            # self.batch_size = 2
+            self.batch_size = 3
 
             print(self.configuration_manager.patch_size)
             self.configuration_manager.patch_size[0]=128

@@ -75,7 +75,7 @@ class nnUNetTrainer_segmenter(nnUNetTrainer):
     def initialize(self):
         if not self.was_initialized:
             ### Some hyperparameters for you to fiddle with
-            self.initial_lr = 1e-2
+            self.initial_lr = 1e-3
             # 权重衰减用于控制正则化项的强度，权重衰减可以帮助防止模型过拟合
             self.weight_decay = 3e-5
             # 用于控制正样本（foreground）的过采样比例
@@ -84,6 +84,7 @@ class nnUNetTrainer_segmenter(nnUNetTrainer):
             self.num_val_iterations_per_epoch = 50
             self.num_epochs = 1000
             self.current_epoch = 0
+            self.batch_size = 3
 
             if self.configuration_manager.patch_size[0] > self.configuration_manager.patch_size[1]:
                 self.configuration_manager.patch_size[1]=self.configuration_manager.patch_size[0]
