@@ -2,5 +2,5 @@
 
 for i in {0..4}
 do
-    CUDA_VISIBLE_DEVICES=0 nnUNetv2_train 002 2d $i --model unet
+    CUDA_VISIBLE_DEVICES=2 nnUNetv2_train 002 2d $i --model unet
 done

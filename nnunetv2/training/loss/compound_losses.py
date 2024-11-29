@@ -3,7 +3,6 @@ from nnunetv2.training.loss.dice import SoftDiceLoss, MemoryEfficientSoftDiceLos
 from nnunetv2.training.loss.robust_ce_loss import RobustCrossEntropyLoss, TopKLoss
 from nnunetv2.utilities.helpers import softmax_helper_dim1
 from torch import nn
-import numpy as np
 
 
 class DC_and_CE_loss(nn.Module):
@@ -55,8 +54,6 @@ class DC_and_CE_loss(nn.Module):
             if self.weight_ce != 0 and (self.ignore_label is None or num_fg > 0) else 0
 
         result = self.weight_ce * ce_loss + self.weight_dice * dc_loss
-        if result < -1:
-            result = np.nan
         return result
 
 
@@ -100,8 +97,6 @@ class DC_and_BCE_loss(nn.Module):
         else:
             ce_loss = self.ce(net_output, target_regions)
         result = self.weight_ce * ce_loss + self.weight_dice * dc_loss
-        if result < -1:
-            result = np.nan
         return result
 
 

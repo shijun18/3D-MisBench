@@ -23,7 +23,9 @@ class TransformerBTS(nn.Module):
         super(TransformerBTS, self).__init__()
 
         assert embedding_dim % num_heads == 0
-        assert img_dim % patch_dim == 0
+        assert img_dim[0] % patch_dim == 0 
+        assert img_dim[1] % patch_dim == 0
+        assert img_dim[2] % patch_dim == 0
 
         self.img_dim = img_dim
         self.embedding_dim = embedding_dim
@@ -34,7 +36,7 @@ class TransformerBTS(nn.Module):
         self.attn_dropout_rate = attn_dropout_rate
         self.conv_patch_representation = conv_patch_representation
 
-        self.num_patches = int((img_dim // patch_dim) ** 3)
+        self.num_patches = int((img_dim[0] // patch_dim) * (img_dim[1] // patch_dim) * (img_dim[2] // patch_dim))
         self.seq_length = self.num_patches
         # self.flatten_dim = 128 * num_channels
         self.flatten_dim = 128
@@ -80,17 +82,17 @@ class TransformerBTS(nn.Module):
     def encode(self, x):
         if self.conv_patch_representation:
             # combine embedding with conv patch distribution
-            x1_1, x2_1, x3_1, x = self.Unet(x)
+
+            # encoder各层输出 x:最底层输出
+            x1_1, x2_1, x3_1, x = self.Unet(x)           # x.shape = (B,128,H/8,W/8,D/8)
             x = self.bn(x)
             x = self.relu(x)
-            x = self.conv_x(x)
-            x = x.permute(0, 2, 3, 4, 1).contiguous()
-            x = x.view(x.size(0), -1, self.embedding_dim)
+            x = self.conv_x(x)                               # (B, 512, H/8, W/8, D/8)                  
+            x = x.permute(0, 2, 3, 4, 1).contiguous()           # (B, H/8, W/8, D/8, 512)
+            x = x.view(x.size(0), -1, self.embedding_dim)    # (B, N, 512)
 
         else:
-            # print(x.size())
             x1_1, x2_1, x3_1, x  = self.Unet(x)
-            # print(x.size())
             x = self.bn(x)
             x = self.relu(x)
             x = (
@@ -101,10 +103,9 @@ class TransformerBTS(nn.Module):
             )
             x = x.view(x.size(0), x.size(1), -1, 8)
             x = x.permute(0, 2, 3, 1).contiguous()
-            # print(x.size())
             x = x.view(x.size(0), -1, self.flatten_dim)
-            # print(x.size())
             x = self.linear_encoding(x)
+            print(x.shape)
         x = self.position_encoding(x)
         x = self.pe_dropout(x)
 
@@ -120,6 +121,7 @@ class TransformerBTS(nn.Module):
     def forward(self, x, auxillary_output_layers=[1, 2, 3, 4]):
 
         x1_1, x2_1, x3_1, encoder_output, intmd_encoder_outputs = self.encode(x)
+        
 
         decoder_output = self.decode(
             x1_1, x2_1, x3_1, encoder_output, intmd_encoder_outputs, auxillary_output_layers
@@ -146,9 +148,9 @@ class TransformerBTS(nn.Module):
     def _reshape_output(self, x):
         x = x.view(
             x.size(0),
-            int(self.img_dim / self.patch_dim),
-            int(self.img_dim / self.patch_dim),
-            int(self.img_dim / self.patch_dim),
+            int(self.img_dim[0] / self.patch_dim),
+            int(self.img_dim[1] / self.patch_dim),
+            int(self.img_dim[2] / self.patch_dim),
             self.embedding_dim,
         )
         x = x.permute(0, 4, 1, 2, 3).contiguous()
@@ -347,7 +349,7 @@ def TransBTS(dataset='brats', _conv_repr=True, _pe_type="learned"):
     return aux_layers, model
 
 
-def my_TransBTS(num_classes = 5,in_channels = 1,patch_size = 224,_conv_repr=False, _pe_type="learned"):
+def my_TransBTS(num_classes = 5,in_channels = 1,patch_size = [128,128,128],_conv_repr=True, _pe_type="learned"):
 
     img_dim = patch_size
     num_channels = in_channels

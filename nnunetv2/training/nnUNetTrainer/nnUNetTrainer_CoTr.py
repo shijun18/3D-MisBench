@@ -24,7 +24,7 @@ class nnUNetTrainer_CoTr(nnUNetTrainer):
             self.oversample_foreground_percent = 0.33
             self.num_iterations_per_epoch = 250
             self.num_val_iterations_per_epoch = 50
-            self.num_epochs = 1000
+            self.num_epochs = 400
             self.current_epoch = 0
 
             # 针对ACDC数据集中，pathc_size不能被8整除导致报错：

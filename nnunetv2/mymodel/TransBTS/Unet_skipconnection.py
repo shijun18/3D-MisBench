@@ -72,41 +72,41 @@ class Unet(nn.Module):
     def __init__(self, in_channels=4, base_channels=16, num_classes=4):
         super(Unet, self).__init__()
 
-        self.InitConv = InitConv(in_channels=in_channels, out_channels=base_channels, dropout=0.2)
+        self.InitConv = InitConv(in_channels=in_channels, out_channels=base_channels, dropout=0.2)  # (c, h ,w ,d) -> (16,h,w,d)
         self.EnBlock1 = EnBlock(in_channels=base_channels)
         self.EnDown1 = EnDown(in_channels=base_channels, out_channels=base_channels*2)
 
-        self.EnBlock2_1 = EnBlock(in_channels=base_channels*2)
+        self.EnBlock2_1 = EnBlock(in_channels=base_channels*2)                                       # (16, h,w,d) -> (32,h/2 , w/2, d/2)
         self.EnBlock2_2 = EnBlock(in_channels=base_channels*2)
         self.EnDown2 = EnDown(in_channels=base_channels*2, out_channels=base_channels*4)
 
-        self.EnBlock3_1 = EnBlock(in_channels=base_channels * 4)
+        self.EnBlock3_1 = EnBlock(in_channels=base_channels * 4)                                    # (32, h/2, w/2, d/2) -> (64, h/4, w/4, d/4)
         self.EnBlock3_2 = EnBlock(in_channels=base_channels * 4)
         self.EnDown3 = EnDown(in_channels=base_channels*4, out_channels=base_channels*8)
 
-        self.EnBlock4_1 = EnBlock(in_channels=base_channels * 8)
-        self.EnBlock4_2 = EnBlock(in_channels=base_channels * 8)
+        self.EnBlock4_1 = EnBlock(in_channels=base_channels * 8)                                       # (64, h/4, w/4, d/4) -> (128, h/8, w/8, d/8)
+        self.EnBlock4_2 = EnBlock(in_channels=base_channels * 8) 
         self.EnBlock4_3 = EnBlock(in_channels=base_channels * 8)
         self.EnBlock4_4 = EnBlock(in_channels=base_channels * 8)
 
     def forward(self, x):
-        x = self.InitConv(x)       # (1, 16, 128, 128, 128)
+        x = self.InitConv(x)       
 
         x1_1 = self.EnBlock1(x)
-        x1_2 = self.EnDown1(x1_1)  # (1, 32, 64, 64, 64)
+        x1_2 = self.EnDown1(x1_1)  
 
         x2_1 = self.EnBlock2_1(x1_2)
         x2_1 = self.EnBlock2_2(x2_1)
-        x2_2 = self.EnDown2(x2_1)  # (1, 64, 32, 32, 32)
+        x2_2 = self.EnDown2(x2_1) 
 
         x3_1 = self.EnBlock3_1(x2_2)
         x3_1 = self.EnBlock3_2(x3_1)
-        x3_2 = self.EnDown3(x3_1)  # (1, 128, 16, 16, 16)
+        x3_2 = self.EnDown3(x3_1)  
 
         x4_1 = self.EnBlock4_1(x3_2)
         x4_2 = self.EnBlock4_2(x4_1)
         x4_3 = self.EnBlock4_3(x4_2)
-        output = self.EnBlock4_4(x4_3)  # (1, 128, 16, 16, 16)
+        output = self.EnBlock4_4(x4_3)  
 
         return x1_1,x2_1,x3_1,output
 

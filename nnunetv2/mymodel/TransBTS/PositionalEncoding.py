@@ -32,4 +32,5 @@ class LearnedPositionalEncoding(nn.Module):
     def forward(self, x, position_ids=None):
         # print(self.max_position_embeddings,self.embedding_dim,self.seq_length)
         position_embeddings = self.position_embeddings
+        
         return x + position_embeddings
