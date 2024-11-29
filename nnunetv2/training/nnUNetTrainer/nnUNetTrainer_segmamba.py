@@ -28,10 +28,15 @@ class nnUNetTrainer_segmamba(nnUNetTrainer):
             self.current_epoch = 0
             # self.batch_size = 2
             
+            # print(self.configuration_manager.patch_size)
+            # self.configuration_manager.patch_size[0]=64
+            # self.configuration_manager.patch_size[1]=64
+            # self.configuration_manager.patch_size[2]=64
+            # 针对ACDC数据集中，pathc_size不能被32整除导致报错：
+            if((self.configuration_manager.patch_size[0] % 32)!=0 ):
+                self.configuration_manager.patch_size[0]=self.configuration_manager.patch_size[0] +(32 - self.configuration_manager.patch_size[0] % 32)
             print(self.configuration_manager.patch_size)
-            self.configuration_manager.patch_size[0]=64
-            self.configuration_manager.patch_size[1]=64
-            self.configuration_manager.patch_size[2]=64
+            # print(self.configuration_manager.patch_size)
 
             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,
                                                                    self.dataset_json)
