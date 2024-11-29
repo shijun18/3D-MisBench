@@ -181,6 +181,7 @@ class MambaEncoder(nn.Module):
                 norm_layer = getattr(self, f'norm{i}')
                 x_out = norm_layer(x)
                 x_out = self.mlps[i](x_out)
+                # print(x_out.shape)
                 outs.append(x_out)
 
         return tuple(outs)

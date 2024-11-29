@@ -144,15 +144,16 @@ class nnUNetTrainer(object):
                 if self.is_cascaded else None
 
         ### Some hyperparameters for you to fiddle with
-        self.initial_lr = 1e-3
+        self.initial_lr = 1e-4
         # 权重衰减用于控制正则化项的强度，权重衰减可以帮助防止模型过拟合
         self.weight_decay = 3e-5
         # 用于控制正样本（foreground）的过采样比例
         self.oversample_foreground_percent = 0.33
         self.num_iterations_per_epoch = 250
         self.num_val_iterations_per_epoch = 50
-        self.num_epochs = 800
+        self.num_epochs = 200
         self.current_epoch = 0
+        self.enable_deep_supervision = False
 
         ### Dealing with labels/regions
         self.label_manager = self.plans_manager.get_label_manager(dataset_json)
@@ -221,10 +222,6 @@ class nnUNetTrainer(object):
 
             # 构建模型
 
-            #############################################################################################################
-            # 想要借助nnUnet项目来训练自己的模型（不是unet），关键就在于把self.network替换，并把损失函数也替换了，否则会和深监督模块捆绑。
-            ##############################################################################################################
-            self.batch_size  = 3
             # wtt修改了这部分
             if self.model == 'unet':
                 self.network = self.build_network_architecture(self.plans_manager, self.dataset_json,

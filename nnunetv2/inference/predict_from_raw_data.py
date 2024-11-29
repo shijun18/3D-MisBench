@@ -115,20 +115,11 @@ class nnUNetPredictor(object):
             network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, model)
 
-        elif trainer_name == 'nnUNetTrainer_transbts' or trainer_name == 'nnUNetTrainer_segmamba':
-            print("4444444444444")
-            model = trainer_name.split("nnUNetTrainer_")[1]
-            
-            configuration_manager.patch_size[0]=128
-            configuration_manager.patch_size[1]=128
-            configuration_manager.patch_size[2]=128
-            network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
-                                                           num_input_channels, model)
 
-        elif trainer_name == 'nnUNetTrainer_CoTr':
+        elif trainer_name == 'nnUNetTrainer_CoTr' or trainer_name == 'nnUNetTrainer_transbts':
             print("444444444444")
             model = trainer_name.split("nnUNetTrainer_")[1]
-            # 针对ACDC数据集中，pathc_size不能被8整除导致报错：
+            # 针对ACDC数据集中，patch_size不能被8整除导致报错：
             if((configuration_manager.patch_size[0] % 8)!=0 ):
                 configuration_manager.patch_size[0]=configuration_manager.patch_size[0] +(8 - configuration_manager.patch_size[0] % 8)
             network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
@@ -137,7 +128,7 @@ class nnUNetPredictor(object):
         elif trainer_name == 'nnUNetTrainer_unetr':
             print("5555555555555")
             model = trainer_name.split("nnUNetTrainer_")[1]
-            # 针对ACDC数据集中，pathc_size不能被16整除导致报错：
+            # 针对ACDC数据集中，patch_size不能被16整除导致报错：
             if((configuration_manager.patch_size[0] % 16)!=0 ):
                 configuration_manager.patch_size[0]=configuration_manager.patch_size[0] + (16 - configuration_manager.patch_size[0] % 16)
             network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,

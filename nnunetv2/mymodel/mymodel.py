@@ -33,7 +33,6 @@ from nnunetv2.mymodel.SETR.SETR import my_SETR_Naive_S
 from nnunetv2.mymodel.TransBTS.TransBTS import my_TransBTS
 from nnunetv2.mymodel.UCTransNet.UCTransNet import get_my_UCTransNet
 from nnunetv2.mymodel.umamba.umamba_bot_3d import get_umamba_bot_3d_from_plans
-from nnunetv2.mymodel.umamba.umamba_enc_3d import get_umamba_enc_3d_from_plans
 from nnunetv2.mymodel.vmunet.vmunet import VMUNet
 from nnunetv2.mymodel.segmamba.segmamba import SegMamba
 from nnunetv2.mymodel.lightmunet.lightmunet import LightMUNet
@@ -153,7 +152,7 @@ def get_my_network_from_plans(plans_manager: PlansManager,
 
     elif(model== 'transbts'):
         # The patch size here represents image size
-        model = my_TransBTS(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,patch_size=configuration_manager.patch_size[0])
+        model = my_TransBTS(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,patch_size=[configuration_manager.patch_size[0],configuration_manager.patch_size[1],configuration_manager.patch_size[2]])
 
     elif(model == 'unet2022'):
         # braintumor及小规模数据集上300个epoch,kits23，verse，totalseg上用500个epoch
@@ -178,11 +177,7 @@ def get_my_network_from_plans(plans_manager: PlansManager,
         model = get_my_UCTransNet(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,img_size = configuration_manager.patch_size[0])
 
     elif(model == 'umamba'):
-        ## bot
-        # model = get_umamba_bot_3d_from_plans(plans_manager, dataset_json, configuration_manager,
-        #                                   num_input_channels,deep_supervision=False)
-        ## enc
-        model = get_umamba_enc_3d_from_plans(plans_manager, dataset_json, configuration_manager,
+        model = get_umamba_bot_3d_from_plans(plans_manager, dataset_json, configuration_manager,
                                           num_input_channels,deep_supervision=False)
         # from thop import clever_format
         # model = get_umamba_enc_3d_from_plans(plans_manager, dataset_json, configuration_manager,
