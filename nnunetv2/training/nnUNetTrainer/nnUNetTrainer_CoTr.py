@@ -26,6 +26,9 @@ class nnUNetTrainer_CoTr(nnUNetTrainer):
             self.num_val_iterations_per_epoch = 50
             self.num_epochs = 400
             self.current_epoch = 0
+            self.batch_size = 2
+
+            
 
             # 针对ACDC数据集中，pathc_size不能被8整除导致报错：
             if((self.configuration_manager.patch_size[0] % 8)!=0 ):

@@ -28,10 +28,10 @@ class nnUNetTrainer_segmamba(nnUNetTrainer):
             self.current_epoch = 0
             # self.batch_size = 2
             
-            # print(self.configuration_manager.patch_size)
-            # self.configuration_manager.patch_size[0]=128
-            # self.configuration_manager.patch_size[1]=128
-            # self.configuration_manager.patch_size[2]=128
+            print(self.configuration_manager.patch_size)
+            self.configuration_manager.patch_size[0]=64
+            self.configuration_manager.patch_size[1]=64
+            self.configuration_manager.patch_size[2]=64
 
             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,
                                                                    self.dataset_json)

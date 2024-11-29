@@ -26,6 +26,7 @@ class nnUNetTrainer_3dunet(nnUNetTrainer):
             self.num_val_iterations_per_epoch = 50
             self.num_epochs = 1000
             self.current_epoch = 0
+            self.batch_size = 2
             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,
                                                                    self.dataset_json)
             
@@ -33,6 +34,7 @@ class nnUNetTrainer_3dunet(nnUNetTrainer):
                                                     self.configuration_manager,
                                                     self.num_input_channels,
                                                     model = self.model).to(self.device)
+            print(self.configuration_manager.patch_size)
             # from nnunetv2.torchsummary import summary
             # summary(self.network,input_size=(1,128,128,128))
             # exit()

@@ -50,7 +50,7 @@ class nnUNetTrainer_TransFuse(nnUNetTrainer):
             self.num_val_iterations_per_epoch = 50
             self.num_epochs = 1000
             self.current_epoch = 0
-
+            self.batch_size = 2
 
             print(self.configuration_manager.patch_size)
 

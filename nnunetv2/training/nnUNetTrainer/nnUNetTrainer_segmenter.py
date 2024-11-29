@@ -82,8 +82,9 @@ class nnUNetTrainer_segmenter(nnUNetTrainer):
             self.oversample_foreground_percent = 0.33
             self.num_iterations_per_epoch = 250
             self.num_val_iterations_per_epoch = 50
-            self.num_epochs = 1500
+            self.num_epochs = 1000
             self.current_epoch = 0
+            self.batch_size = 3
 
             if self.configuration_manager.patch_size[0] > self.configuration_manager.patch_size[1]:
                 self.configuration_manager.patch_size[1]=self.configuration_manager.patch_size[0]

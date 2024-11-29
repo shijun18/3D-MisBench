@@ -102,6 +102,7 @@ def run_create_new_model_code_entry():
     args = parser.parse_args()
     create_new_model(args.new_model_cfg)
     print('add model done!')
+    print('now you can use nnunetv2 command to start your trainning')
 
 
 if __name__ == '__main__':
