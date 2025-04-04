@@ -120,12 +120,9 @@ def compute_metrics(reference_file: str, prediction_file: str, image_reader_writ
 
             mask_p = torch.tensor(mask_pred).unsqueeze(0)
             mask_r = torch.tensor(mask_ref).unsqueeze(0)
-            print('mask_p:',mask_p.size())
-            print('mask_r:',mask_r.size())
             results['metrics'][r]['HD95'] = np.array(monai.metrics.compute_hausdorff_distance(mask_p, mask_r, include_background=False, 
                                                                                      distance_metric='euclidean', percentile=95, 
                                                                                      directed=False, spacing=None))
-            print(results['metrics'][r]['HD95'])
             results['metrics'][r]['HD95'] = results['metrics'][r]['HD95'][0][0]
         results['metrics'][r]['FP'] = fp
         results['metrics'][r]['TP'] = tp

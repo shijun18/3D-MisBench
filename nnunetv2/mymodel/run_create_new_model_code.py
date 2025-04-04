@@ -1,19 +1,5 @@
 import os
-import socket
-from typing import Union, Optional
 import json
-
-import nnunetv2
-import torch.cuda
-import torch.distributed as dist
-import torch.multiprocessing as mp
-from batchgenerators.utilities.file_and_folder_operations import join, isfile, load_json
-from nnunetv2.paths import nnUNet_preprocessed
-from nnunetv2.run.load_pretrained_weights import load_pretrained_weights
-from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
-from nnunetv2.utilities.dataset_name_id_conversion import maybe_convert_to_dataset_name
-from nnunetv2.utilities.find_class_by_name import recursive_find_python_class
-from torch.backends import cudnn
 import shutil
 
 # 整体流程：给定一个model.py，创建对应的Trainer和mymodel中的对应代码
@@ -49,8 +35,12 @@ def create_new_model(new_model_cfg):
         config = json.load(config_file)
     model_file_path = config['model_path']   
     function_name = config['model_create_function_name']
-    
-    file_path = 'mymodel_copy.py'
+
+    cur_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.dirname(cur_dir)
+    print('cur_dir:',cur_dir)
+
+    file_path = os.path.join(cur_dir, 'mymodel.py')
     line_number_import = 0
     new_content_import = generate_import_statement(model_file_path,function_name,'nnunetv2')
 
@@ -76,8 +66,8 @@ def create_new_model(new_model_cfg):
         print('add mymodel.py done')
         # 到这里完成向mymodel.py中添加新的代码，接下来需要添加新的Trainer文件
 
-    trainer_file_name = '../training/nnUNetTrainer/nnUNetTrainer_newmodel.py'
-    new_trainer_file_path = '../training/nnUNetTrainer/nnUNetTrainer_{}.py'.format(config['model_name'])
+    trainer_file_name = os.path.join(parent_dir, 'training', 'nnUNetTrainer', 'nnUNetTrainer_newmodel.py')
+    new_trainer_file_path = os.path.join(parent_dir, 'training', 'nnUNetTrainer', 'nnUNetTrainer_{}.py'.format(config['model_name']))
     shutil.copyfile(trainer_file_name, new_trainer_file_path)
     with open(new_trainer_file_path, 'r') as new_trainer_file:
         new_trainer_lines = new_trainer_file.readlines()

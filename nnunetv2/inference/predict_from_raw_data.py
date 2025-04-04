@@ -101,12 +101,10 @@ class nnUNetPredictor(object):
                                                     trainer_name, 'nnunetv2.training.nnUNetTrainer')
         print(trainer_name)
         if trainer_name == 'nnUNetTrainer':
-            print("111111111111")
             network = trainer_class.build_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, enable_deep_supervision=False)
 
-        elif trainer_name == 'nnUNetTrainer_transunet' or trainer_name =='nnUNetTrainer_dstransunet' or trainer_name =='nnUNetTrainer_utnet' or trainer_name =='nnUNetTrainer_swinunet' or trainer_name =='nnUNetTrainer_unet2022'or trainer_name =='nnUNetTrainer_MedT' or trainer_name =='nnUNetTrainer_setr'  or trainer_name =='nnUNetTrainer_segmenter' or trainer_name =='nnUNetTrainer_uctransnet' or trainer_name =='nnUNetTrainer_TransFuse':
-            print("333333333333")
+        elif trainer_name == 'nnUNetTrainer_transunet' or trainer_name =='nnUNetTrainer_dstransunet' or trainer_name =='nnUNetTrainer_utnet' or trainer_name =='nnUNetTrainer_swinunet' or trainer_name =='nnUNetTrainer_unet2022' or trainer_name =='nnUNetTrainer_segmenter' or trainer_name =='nnUNetTrainer_uctransnet' or trainer_name =='nnUNetTrainer_TransFuse':
             model = trainer_name.split("nnUNetTrainer_")[1]
             if configuration_manager.patch_size[0] > configuration_manager.patch_size[1]:
                 configuration_manager.patch_size[1]=configuration_manager.patch_size[0]
@@ -117,7 +115,6 @@ class nnUNetPredictor(object):
 
 
         elif trainer_name == 'nnUNetTrainer_CoTr' or trainer_name == 'nnUNetTrainer_transbts':
-            print("444444444444")
             model = trainer_name.split("nnUNetTrainer_")[1]
             # 针对ACDC数据集中，patch_size不能被8整除导致报错：
             if((configuration_manager.patch_size[0] % 8)!=0 ):
@@ -126,7 +123,6 @@ class nnUNetPredictor(object):
                                                            num_input_channels, model)
         
         elif trainer_name == 'nnUNetTrainer_unetr':
-            print("5555555555555")
             model = trainer_name.split("nnUNetTrainer_")[1]
             # 针对ACDC数据集中，patch_size不能被16整除导致报错：
             if((configuration_manager.patch_size[0] % 16)!=0 ):
@@ -135,7 +131,6 @@ class nnUNetPredictor(object):
                                                            num_input_channels, model)
             
         elif trainer_name == 'nnUNetTrainer_segmamba':
-            print("666666666666")
             model = trainer_name.split("nnUNetTrainer_")[1]
             # 针对ACDC数据集中，patch_size不能被32整除导致报错：
             if((configuration_manager.patch_size[0] % 32)!=0 ):
@@ -144,7 +139,6 @@ class nnUNetPredictor(object):
                                                            num_input_channels, model)
 
         else:
-            print("2222222222222")
             model = trainer_name.split("nnUNetTrainer_")[1]
             network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, model)
@@ -459,12 +453,13 @@ class nnUNetPredictor(object):
                     print(f'done with {os.path.basename(ofile)}')
                 else:
                     print(f'\nDone with image of shape {data.shape}:')
-            print('1111111111111111111111111111111')
+            print("#######################################################################")
+            print('Prediction done, the prediction time for each case is:')
             avg_time = np.mean(total_time)
             std_time = np.std(total_time)
-            print(f'平均: {avg_time:.4f}秒')
+            print(f'avg: {avg_time:.4f}秒')
             print(f'std: {std_time:.4f}秒')
-            print(f'一共: {len(total_time)}个样本')
+            print(f'total case number: {len(total_time)}')
             print(self.trainer_name)
             ret = [i.get()[0] for i in r]
         

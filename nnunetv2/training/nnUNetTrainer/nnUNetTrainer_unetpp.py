@@ -1,15 +1,9 @@
 from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
-import segmentation_models_pytorch as smp
 import torch
-from dynamic_network_architectures.architectures.unet import PlainConvUNet, ResidualEncoderUNet
-from dynamic_network_architectures.building_blocks.helper import get_matching_instancenorm, convert_dim_to_conv_op
-from dynamic_network_architectures.initialization.weight_init import init_last_bn_before_add_to_0
-from nnunetv2.utilities.network_initialization import InitWeights_He
-from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager, PlansManager
-from torch import nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 from nnunetv2.utilities.label_handling.label_handling import convert_labelmap_to_one_hot, determine_num_input_channels
 from nnunetv2.mymodel.mymodel import get_my_network_from_plans
+
 
 
 
@@ -26,7 +20,8 @@ class nnUNetTrainer_unetpp(nnUNetTrainer):
             self.num_val_iterations_per_epoch = 50
             self.num_epochs = 1000
             self.current_epoch = 0
-            self.batch_size = 3
+            # you can reset batch_size here
+            # self.batch_size = 3
             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,
                                                                    self.dataset_json)
             

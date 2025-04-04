@@ -1,12 +1,5 @@
 from nnunetv2.training.nnUNetTrainer.nnUNetTrainer import nnUNetTrainer
-import segmentation_models_pytorch as smp
 import torch
-from dynamic_network_architectures.architectures.unet import PlainConvUNet, ResidualEncoderUNet
-from dynamic_network_architectures.building_blocks.helper import get_matching_instancenorm, convert_dim_to_conv_op
-from dynamic_network_architectures.initialization.weight_init import init_last_bn_before_add_to_0
-from nnunetv2.utilities.network_initialization import InitWeights_He
-from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager, PlansManager
-from torch import nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 from nnunetv2.utilities.label_handling.label_handling import convert_labelmap_to_one_hot, determine_num_input_channels
 from nnunetv2.mymodel.mymodel import get_my_network_from_plans
@@ -34,11 +27,6 @@ class nnUNetTrainer_3dunet(nnUNetTrainer):
                                                     self.configuration_manager,
                                                     self.num_input_channels,
                                                     model = self.model).to(self.device)
-            print(self.configuration_manager.patch_size)
-            # from nnunetv2.torchsummary import summary
-            # summary(self.network,input_size=(1,128,128,128))
-            # exit()
-            # compile network for free speedup
             if self._do_i_compile():
                 self.print_to_log_file('Compiling network...')
                 self.network = torch.compile(self.network)

@@ -10,7 +10,7 @@ import nibabel as nib
 import os
 import sys
 
-
+# code to register HaN-Seg images using ANTsPy
 
 def img_register(path_to_ct_image:PathType,path_to_mri_image:PathType,case_id,src):
 
