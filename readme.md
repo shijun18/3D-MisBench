@@ -22,7 +22,7 @@ pip install causal-conv1d
 If you encounter other problems, you can try to install it manually.  
 Please refer to [https://github.com/Dao-AILab/causal-conv1d](https://github.com/Dao-AILab/causal-conv1d)
 
-## preprocessing
+## Preprocessing
 First, consult [nnUNet's official documentation](https://github.com/MIC-DKFZ/nnUNet/blob/master/documentation/dataset_format.md) to prepare and transform the dataset
 
 We have provided dataset_conversion code for:
@@ -47,13 +47,13 @@ Then, you can start preprocessing by running the following command:
 nnUNetv2_plan_and_preprocess -d DATASET_ID --verify_dataset_integrity
 ```
 
-## training
+## Training
 Start training a model by running the following command:
 ```bash
 nnUNetv2_train DATASET_ID 3d_fullres/2d  0(use 0-4 if you want to use 5-fold cross-validation) --model xxx(choose a model)
 ```
 
-## inference
+## Inference
 If you want to use 5-fold cross-validation and have trained 5-fold model, then run the following command:
 ```bash
 nnUNetv2_predict -i INPUT_DIR -o OUTPUT_DIR -d DATASET_ID -c 3d_fullres/2d -tr nnUNetTrainer_xxx
@@ -61,6 +61,22 @@ nnUNetv2_predict -i INPUT_DIR -o OUTPUT_DIR -d DATASET_ID -c 3d_fullres/2d -tr n
 Or if you want to inference a single fold, then run the following command:
 ```bash
 nnUNetv2_predict -i INPUT_DIR -o OUTPUT_DIR -d DATASET_ID -c 3d_fullres/2d -tr nnUNetTrainer_xxx -f (0-4)
+```
+
+## Calculate metrics
+### training time and inference time
+We calculate Training Time per epoch based on training_log. It is only necessary to specify the path of training_log(--log_file) and the calculation interval to get the mean and std of training time per epoch.
+```bash
+python calculate_epoch_time.py --log_file LOG_FILE 
+```
+The inference time calculation is integrated into the framework's inference code, and the inference time is automatically obtained after the inference is completed.
+
+
+### DSC, NSD, ASD and HD95
+We provide metrics calculation code based on [MONAI library](https://docs.monai.io/en/stable/metrics.html). You can just specify the segmentation result path(--seg_path) and grand truth path(--gd_path) to calculate DSC, NSD, ASD and HD95.  
+The results are stored in CSV format in the specified path(--save_dir).
+```bash
+python calculate_metrics.py --seg_path SEG_PATH --gd_path GD_PATH --save_dir SAVE_DIR
 ```
 
 ## Add a new model 
