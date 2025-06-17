@@ -114,7 +114,7 @@ nnUnetvenv/
 
 *.model
 
-nnUNetFrame/
+# nnUNetFrame/
 hiddenlayer/
 output/
 .github/

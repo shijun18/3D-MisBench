@@ -6,20 +6,20 @@ import segmentation_models_pytorch as smp
 import torch
 from nnunetv2.utilities.plans_handling.plans_handler import ConfigurationManager, PlansManager
 from torch import nn
-from nnunetv2.mymodel.unet_3p import UNet_3Plus
-from nnunetv2.mymodel.unetr import UNETR
-from nnunetv2.mymodel.attentionunet import AttentionUnet
+from nnunetv2.mymodel.unet_3p.unet_3p import UNet_3Plus
+from nnunetv2.mymodel.unetr.unetr import UNETR
+from nnunetv2.mymodel.attentionunet.attentionunet import AttentionUnet
 from nnunetv2.mymodel.hrnet.hrnet import hrnet48
 from nnunetv2.mymodel.ccnet.ccnet import Seg_Model
 from nnunetv2.mymodel.TransUNet.vit_seg_modeling import VisionTransformer as ViT_seg
 from nnunetv2.mymodel.TransUNet.vit_seg_modeling import CONFIGS as CONFIGS_ViT_seg
-from nnunetv2.mymodel.unet_3d import UNet
+from nnunetv2.mymodel.unet_3d.unet_3d import UNet
 from nnunetv2.mymodel.DsTransUNet.DS_TransUNet import UNet as DsTransUnet
-from nnunetv2.mymodel.unet_3d import DoubleConv3D, Down3D, Up3D, Tail3D
+from nnunetv2.mymodel.unet_3d.unet_3d import DoubleConv3D, Down3D, Up3D, Tail3D
 from nnunetv2.mymodel.UTNet.utnet import UTNet
-from nnunetv2.mymodel.swin_unet import SwinUnet, SwinUnet_config
+from nnunetv2.mymodel.swin_unet.swin_unet import SwinUnet, SwinUnet_config
 from nnunetv2.mymodel.segmenter.segmenter import get_segmenter
-from nnunetv2.mymodel.UNet2022 import unet2022
+from nnunetv2.mymodel.UNet2022.UNet2022 import unet2022
 from nnunetv2.mymodel.CoTr.ResTranUnet import ResTranUnet
 from nnunetv2.mymodel.TransFuse.TransFuse import TransFuse_S,TransFuse_L
 from nnunetv2.mymodel.TransBTS.TransBTS import my_TransBTS
@@ -28,6 +28,19 @@ from nnunetv2.mymodel.umamba.umamba_bot_3d import get_umamba_bot_3d_from_plans
 from nnunetv2.mymodel.vmunet.vmunet import VMUNet
 from nnunetv2.mymodel.segmamba.segmamba import SegMamba
 
+'''
+
+Note: Swin UNETR and Segmamba require that the input dimensions be divisible by the stride of every layer within the sliding window path, including downsampling layers, after patch partitioning. 
+For example, if the patch size is 2, after five layers (including the initial embedding and four downsampling stages), the input will have been downscaled by a total of 2^5 =32. 
+Therefore, each dimension of the input must be a multiple of 32.
+
+For UNETR, due to its patch embedding operation, each input dimension must be a multiple of the model's patch size (16x16x16). This means the height, width, and depth of your input image all need to be perfectly divisible by 16.
+
+Other models based on the Vision Transformer (ViT) architecture often have a different constraint: their input image dimensions must be equal (H=W). This is typically because of how their source code and ViT modules are set up, 
+often assuming square input images for simplicity and computational efficiency.
+
+
+'''
 
 def get_my_network_from_plans(plans_manager: PlansManager,
                            dataset_json: dict,
