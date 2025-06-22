@@ -24,10 +24,10 @@ class nnUNetTrainer_unetr(nnUNetTrainer):
             # you can reset batch_size here
             # self.batch_size = 2
 
-            # 针对ACDC数据集中，pathc_size不能被16整除导致报错：
-            print(self.configuration_manager.patch_size[0])
-            if((self.configuration_manager.patch_size[0] % 16)!=0 ):
-                self.configuration_manager.patch_size[0]=self.configuration_manager.patch_size[0] + (16 - self.configuration_manager.patch_size[0] % 16)
+            # patch size must be divisible by [16, 16, 16]
+            for i in range(len(self.configuration_manager.patch_size)):
+                if((self.configuration_manager.patch_size[i] % 16)!=0 ):
+                    self.configuration_manager.patch_size[i]=self.configuration_manager.patch_size[i] +(16 - self.configuration_manager.patch_size[i] % 16)
             print(self.configuration_manager.patch_size)
 
             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,

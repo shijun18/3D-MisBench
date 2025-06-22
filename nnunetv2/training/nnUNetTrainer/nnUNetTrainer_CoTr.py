@@ -24,9 +24,13 @@ class nnUNetTrainer_CoTr(nnUNetTrainer):
 
             
 
-            # 针对ACDC数据集中，pathc_size不能被8整除导致报错：
+           # patch size must be divisible by [8, 16, 16]
             if((self.configuration_manager.patch_size[0] % 8)!=0 ):
                 self.configuration_manager.patch_size[0]=self.configuration_manager.patch_size[0] +(8 - self.configuration_manager.patch_size[0] % 8)
+            if((self.configuration_manager.patch_size[1] % 16)!=0 ):
+                self.configuration_manager.patch_size[1]=self.configuration_manager.patch_size[1] +(16 - self.configuration_manager.patch_size[1] % 16)
+            if((self.configuration_manager.patch_size[2] % 16)!=0 ):
+                self.configuration_manager.patch_size[2]=self.configuration_manager.patch_size[2] +(16 - self.configuration_manager.patch_size[2] % 16)
             print(self.configuration_manager.patch_size)
             # print(self.configuration_manager.patch_size)
 

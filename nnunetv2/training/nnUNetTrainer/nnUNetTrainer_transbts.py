@@ -10,7 +10,7 @@ class nnUNetTrainer_transbts(nnUNetTrainer):
    def initialize(self):
         if not self.was_initialized:
             ### Some hyperparameters for you to fiddle with
-            self.initial_lr = 1e-4
+            self.initial_lr = 1e-3
             # 权重衰减用于控制正则化项的强度，权重衰减可以帮助防止模型过拟合
             self.weight_decay = 3e-5
             # 用于控制正样本（foreground）的过采样比例
@@ -20,13 +20,12 @@ class nnUNetTrainer_transbts(nnUNetTrainer):
             self.num_epochs = 400
             self.current_epoch = 0
 
-            # 针对ACDC数据集中，pathc_size不能被8整除导致报错：
-            # For ACDC dataset, pathc_size is not divisible by 8, resulting in an error:
-            if((self.configuration_manager.patch_size[0] % 8)!=0 ):
-                self.configuration_manager.patch_size[0]=self.configuration_manager.patch_size[0] +(8 - self.configuration_manager.patch_size[0] % 8)
+             # patch size must be divisible by [8, 8, 8]
+            for i in range(len(self.configuration_manager.patch_size)):
+                if((self.configuration_manager.patch_size[i] % 8)!=0 ):
+                    self.configuration_manager.patch_size[i]=self.configuration_manager.patch_size[i] +(8 - self.configuration_manager.patch_size[i] % 8)
             print(self.configuration_manager.patch_size)
-            # print(self.configuration_manager.patch_size)
-
+           
 
 
             self.num_input_channels = determine_num_input_channels(self.plans_manager, self.configuration_manager,

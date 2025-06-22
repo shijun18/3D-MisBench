@@ -114,27 +114,44 @@ class nnUNetPredictor(object):
                                                            num_input_channels, model)
 
 
-        elif trainer_name == 'nnUNetTrainer_CoTr' or trainer_name == 'nnUNetTrainer_transbts':
+        elif trainer_name == 'nnUNetTrainer_transbts':
             model = trainer_name.split("nnUNetTrainer_")[1]
-            # 针对ACDC数据集中，patch_size不能被8整除导致报错：
-            if((configuration_manager.patch_size[0] % 8)!=0 ):
-                configuration_manager.patch_size[0]=configuration_manager.patch_size[0] +(8 - configuration_manager.patch_size[0] % 8)
+            # patch size must be divisible by [8, 8, 8]
+            for i in range(len(configuration_manager.patch_size)):
+                if((configuration_manager.patch_size[i] % 8)!=0 ):
+                    configuration_manager.patch_size[i]=configuration_manager.patch_size[i] +(8 - configuration_manager.patch_size[i] % 8)
+
             network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, model)
         
+        elif trainer_name == 'nnUNetTrainer_CoTr':
+            model = trainer_name.split("nnUNetTrainer_")[1]
+            # patch size must be divisible by [8, 16, 16]
+            if((configuration_manager.patch_size[0] % 8)!=0 ):
+                configuration_manager.patch_size[0]=configuration_manager.patch_size[0] +(8 - configuration_manager.patch_size[0] % 8)
+            if((configuration_manager.patch_size[1] % 16)!=0 ):
+                configuration_manager.patch_size[1]=configuration_manager.patch_size[1] +(16 - configuration_manager.patch_size[1] % 16)
+            if((configuration_manager.patch_size[2] % 16)!=0 ):
+                configuration_manager.patch_size[2]=configuration_manager.patch_size[2] +(16 - configuration_manager.patch_size[2] % 16)
+
+            network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
+                                                           num_input_channels, model)
+
         elif trainer_name == 'nnUNetTrainer_unetr':
             model = trainer_name.split("nnUNetTrainer_")[1]
-            # 针对ACDC数据集中，patch_size不能被16整除导致报错：
-            if((configuration_manager.patch_size[0] % 16)!=0 ):
-                configuration_manager.patch_size[0]=configuration_manager.patch_size[0] + (16 - configuration_manager.patch_size[0] % 16)
+            # patch size must be divisible by [16, 16, 16]
+            for i in range(len(configuration_manager.patch_size)):
+                if((configuration_manager.patch_size[i] % 16)!=0 ):
+                    configuration_manager.patch_size[i]=configuration_manager.patch_size[i] +(16 - configuration_manager.patch_size[i] % 16)
             network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, model)
             
-        elif trainer_name == 'nnUNetTrainer_segmamba':
+        elif trainer_name == 'nnUNetTrainer_segmamba' or trainer_name == 'nnUNetTrainer_swin_unetr':
             model = trainer_name.split("nnUNetTrainer_")[1]
-            # 针对ACDC数据集中，patch_size不能被32整除导致报错：
-            if((configuration_manager.patch_size[0] % 32)!=0 ):
-                configuration_manager.patch_size[0]=configuration_manager.patch_size[0] + (32 - configuration_manager.patch_size[0] % 32)
+            # patch size must be divisible by [32, 32, 32]
+            for i in range(len(configuration_manager.patch_size)):
+                if((configuration_manager.patch_size[i] % 32)!=0 ):
+                    configuration_manager.patch_size[i]=configuration_manager.patch_size[i] + (32 - configuration_manager.patch_size[i] % 32)
             network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, model)
 

@@ -27,6 +27,7 @@ from nnunetv2.mymodel.UCTransNet.UCTransNet import get_my_UCTransNet
 from nnunetv2.mymodel.umamba.umamba_bot_3d import get_umamba_bot_3d_from_plans
 from nnunetv2.mymodel.vmunet.vmunet import VMUNet
 from nnunetv2.mymodel.segmamba.segmamba import SegMamba
+from nnunetv2.mymodel.swin_unetr.swin_unetr import SwinUNETR
 
 '''
 
@@ -138,6 +139,10 @@ def get_my_network_from_plans(plans_manager: PlansManager,
 
     elif(model == 'uctransnet'):
         model = get_my_UCTransNet(num_classes=label_manager.num_segmentation_heads,in_channels=num_input_channels,img_size = configuration_manager.patch_size[0])
+
+    elif(model == 'swin_unetr'):
+        model = SwinUNETR(in_channels=num_input_channels, out_channels=label_manager.num_segmentation_heads, feature_size= 48, use_checkpoint = False)
+
 
     elif(model == 'umamba'):
         model = get_umamba_bot_3d_from_plans(plans_manager, dataset_json, configuration_manager,
