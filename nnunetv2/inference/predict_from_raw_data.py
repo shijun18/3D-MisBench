@@ -137,7 +137,7 @@ class nnUNetPredictor(object):
             network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, model)
 
-        elif trainer_name == 'nnUNetTrainer_unetr':
+        elif trainer_name == 'nnUNetTrainer_unetr' or trainer_name == 'nnUNetTrainer_segmamba':
             model = trainer_name.split("nnUNetTrainer_")[1]
             # patch size must be divisible by [16, 16, 16]
             for i in range(len(configuration_manager.patch_size)):
@@ -146,7 +146,7 @@ class nnUNetPredictor(object):
             network = trainer_class.build_my_network_architecture(plans_manager, dataset_json, configuration_manager,
                                                            num_input_channels, model)
             
-        elif trainer_name == 'nnUNetTrainer_segmamba' or trainer_name == 'nnUNetTrainer_swin_unetr':
+        elif trainer_name == 'nnUNetTrainer_swin_unetr':
             model = trainer_name.split("nnUNetTrainer_")[1]
             # patch size must be divisible by [32, 32, 32]
             for i in range(len(configuration_manager.patch_size)):

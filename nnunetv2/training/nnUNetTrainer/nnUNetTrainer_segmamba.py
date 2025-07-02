@@ -22,10 +22,10 @@ class nnUNetTrainer_segmamba(nnUNetTrainer):
             self.current_epoch = 0
             # self.batch_size = 2
             
-            # patch size must be divisible by [32, 32, 32]
+            # patch size must be divisible by [16, 16, 16]
             for i in range(len(self.configuration_manager.patch_size)):
-                if((self.configuration_manager.patch_size[i] % 32)!=0 ):
-                    self.configuration_manager.patch_size[i]=self.configuration_manager.patch_size[i] +(32 - self.configuration_manager.patch_size[i] % 32)
+                if((self.configuration_manager.patch_size[i] % 16)!=0 ):
+                    self.configuration_manager.patch_size[i]=self.configuration_manager.patch_size[i] +(16 - self.configuration_manager.patch_size[i] % 16)
             print(self.configuration_manager.patch_size)
             # print(self.configuration_manager.patch_size)
 
