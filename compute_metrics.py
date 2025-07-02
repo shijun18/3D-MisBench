@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import pandas as pd
 import SimpleITK as sitk
+import nibabel as nib
 from tqdm import tqdm
 import json
 from batchgenerators.utilities.file_and_folder_operations import *
@@ -21,6 +22,29 @@ def load_nifti_image(file_path):
 
     return array, spacing
 
+def load_nifti_image_with_nibabel(file_path):
+    """
+    use NiBabel to load NIfTI image and return the image array and spacing.
+
+    Args:
+        file_path (str): NIfTI 文件的路径。
+
+    Returns:
+        tuple: (numpy.ndarray, tuple)
+               - image_array, shape: [D, H, W] 
+               - spacing, shape [z, y, x]
+    """
+    img = nib.load(file_path)
+
+
+    array = img.get_fdata() 
+    array = array.transpose(2, 1, 0) # from (h, w, d) -> (d, h, w)
+
+    header = img.header
+    spacing = header.get_zooms()[:3] # to [z, y, x]
+    spacing_zyx = (float(spacing[2]), float(spacing[1]), float(spacing[0]))  
+
+    return array, spacing_zyx
 
 
 def evaluate_folder(pred_dir, gt_dir, num_classes, class_thresholds, output_csv):
@@ -44,9 +68,14 @@ def evaluate_folder(pred_dir, gt_dir, num_classes, class_thresholds, output_csv)
                 print(f"Warning: Ground truth file not found for {filename}")
                 continue
             
-            
-            pred_np, spacing = load_nifti_image(pred_path)
-            gt_np, _ = load_nifti_image(gt_path)
+            try:
+                pred_np, spacing = load_nifti_image(pred_path)
+                gt_np, _ = load_nifti_image(gt_path)
+            except Exception as e:
+                # print(f"Error loading files for {filename}: {e}, now using nibabel to load")
+                pred_np, spacing = load_nifti_image_with_nibabel(pred_path)
+                gt_np, _ = load_nifti_image_with_nibabel(gt_path)
+
             
             pred_tensor = one_hot(torch.tensor(pred_np)[None, None, ...].long(), num_classes=num_classes).float()
             gt_tensor = one_hot(torch.tensor(gt_np.astype(np.uint8))[None, None, ...].long(), num_classes=num_classes).float()
@@ -173,7 +202,7 @@ labels = data['labels']
 
 # 获取标签数量
 num_classes = len(labels)
-class_thresholds = [2] * (num_classes - 1)# 每类允许边界误差, for NSD
+class_thresholds = [2] * (num_classes - 1)# allowable boundary error for each class, for NSD
 
 # ==== 执行 ====
 evaluate_folder(pred_dir, gt_dir, num_classes, class_thresholds, output_csv)
